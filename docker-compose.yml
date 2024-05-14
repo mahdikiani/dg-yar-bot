@@ -1,0 +1,74 @@
+services:
+  db:
+    image: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    networks:
+      - data
+    volumes:
+      - ./pg.data:/var/lib/postgresql/data/
+
+  dragonfly:
+    image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+    ulimits:
+      memlock: -1
+    volumes:
+      - ./dragonfly.data:/data
+    networks:
+      - data
+
+  celery:
+    build: ./web
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A server.celery worker
+    # command: python -m debugpy --listen 0.0.0.0:3000 -m celery -A server.celery worker -l info
+    volumes:
+      - ./web/logs/celery.log:/app/logs/celery.log
+    #   - ./web:/app
+    # ports:
+    #   - 3040:3000
+    networks:
+      - data
+
+  celery-beat:
+    build: ./web
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A server.celery beat
+    networks:
+      - data
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    env_file: .env
+    command: ./docker-entrypoint.sh
+    # ports:
+    #       - 3030:3000
+    networks:
+      - data
+      - traefik-net
+    volumes:
+      # - ./web/db.sqlite3:/app/db.sqlite3
+      - ./web/logs/web.log:/app/logs/web.log
+      - ./web:/app
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${PROJECT_NAME}.entrypoints=web"
+      - "traefik.http.routers.${PROJECT_NAME}.rule=Host(`${DOMAIN}`)"
+      # - "traefik.http.routers.${PROJECT_NAME}.middlewares=https-redirect"
+      - "traefik.http.routers.${PROJECT_NAME}-secure.entrypoints=websecure"
+      - "traefik.http.routers.${PROJECT_NAME}-secure.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${PROJECT_NAME}-secure.tls=true"
+      - "traefik.http.routers.${PROJECT_NAME}-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+  data:
+  traefik-net:
+    external: true
