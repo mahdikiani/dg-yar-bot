@@ -1,6 +1,5 @@
-import os
 import logging
-import time
+import os
 
 from django.apps import AppConfig
 from django.urls import reverse

@@ -27,6 +27,7 @@ class BaseBot(telebot.TeleBot):
             self.token,
             parse_mode="HTML" if self.bot_type == "telegram" else "markdownV2",
             use_class_middlewares=True,
+            threaded=False,
             *args,
             **kwargs,
         )

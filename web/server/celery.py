@@ -19,7 +19,7 @@ app.conf.update(
     result_serializer="json",
     timezone="Asia/Tehran",
     enable_utc=True,
-    worker_concurrency=1 if settings.DEBUG else 2**2,
+    worker_concurrency=2 if settings.DEBUG else 2**2,
     broker_connection_retry_on_startup=True,
 )
 

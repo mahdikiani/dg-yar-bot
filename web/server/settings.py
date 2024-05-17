@@ -139,6 +139,11 @@ LOGGING = {
         },
     },
     "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
         "web": {
             "level": "INFO",
             "class": "logging.FileHandler",
@@ -152,16 +157,21 @@ LOGGING = {
             "formatter": "verbose",
             "maxBytes": 1024 * 1024 * 100,  # 100 mb
         },
-        # "bot": {
-        #     "level": "INFO",
-        #     "class": "logging.FileHandler",
-        #     "filename": "./logs/bot.log",
-        #     "formatter": "verbose",
-        # },
+        "bot": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": "./logs/bot.log",
+            "formatter": "verbose",
+        },
     },
     "loggers": {
         "django": {
-            "handlers": ["web"],
+            "handlers": ["web", "console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "web": {
+            "handlers": ["web", "console"],
             "level": "INFO",
             "propagate": True,
         },
@@ -171,7 +181,7 @@ LOGGING = {
             "propagate": True,
         },
         "bot": {
-            "handlers": ["web"],
+            "handlers": ["web", "bot"],
             "level": "INFO",
             "propagate": True,
         },
