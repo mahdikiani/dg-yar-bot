@@ -1,7 +1,7 @@
 import os
 from io import BytesIO
 import logging
-
+import requests
 import telebot
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -9,7 +9,9 @@ from singleton import Singleton
 from telebot.handler_backends import BaseMiddleware
 from utils.basic import get_all_subclasses
 from celery import shared_task
+from utils.texttools import is_valid_url
 import usso.api
+from usso import UserData
 
 from . import Bot
 from . import functions
@@ -28,11 +30,11 @@ logger = logging.getLogger("bot")
 
 
 # @lru_cache
-def get_usso_api(creds: dict):
+def get_usso_api(creds: dict) -> UserData:
     usso_api = usso.api.UssoAPI(
         url="https://sso.pixiee.io", api_key=os.getenv("USSO_API_KEY")
     )
-    u = usso_api.get_user_by_credentials(creds)
+    u = usso_api.get_user_by_credentials(creds, raise_exception=False)
     if "error" in u:
         u = usso_api.create_user_by_credentials(creds)
     return u
@@ -57,7 +59,7 @@ class UserMiddleware(BaseMiddleware):
 
         creds = {"auth_method": messenger, "representor": f"{from_user.id}"}
         u = get_usso_api(creds)
-        user, _ = User.objects.get_or_create(username=u["uid"])
+        user, _ = User.objects.get_or_create(username=u.uid)
 
         user.last_login = timezone.now()
 
@@ -114,7 +116,7 @@ def prompt(message: telebot.types.Message, bot: Bot.BaseBot):
     try:
         functions.ai_response.delay(
             message=message.text,
-            user_id=message.from_user.id,
+            user_id=message.user.username,
             chat_id=message.chat.id,
             response_id=response.message_id,
         )
@@ -136,12 +138,26 @@ def voice(message: telebot.types.Message, bot: Bot.BaseBot):
     except Exception as e:
         logging.error(e)
 
+def url_response(message: telebot.types.Message, bot: Bot.BaseBot):
+    response = bot.reply_to(message, "Please wait ...")
+    try:
+        functions.url_response.delay(
+            url=message.text,
+            user_id=message.user.username,
+            chat_id=message.chat.id,
+            response_id=response.message_id,
+        )
+    except Exception as e:
+        logging.error(e)
 
 def message(message: telebot.types.Message, bot: Bot.BaseBot):
     if message.voice:
         return voice(message, bot)
     if message.text.startswith("/"):
         return command(message, bot)
+
+    if is_valid_url(message.text):
+        return url_response(message, bot)
 
     return prompt(message, bot)
 

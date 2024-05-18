@@ -3,6 +3,8 @@ import os
 import dotenv
 import singleton
 import telebot
+from telebot.apihelper import ApiTelegramException
+
 
 dotenv.load_dotenv()
 
@@ -34,6 +36,13 @@ class BaseBot(telebot.TeleBot):
 
     def __str__(self):
         return self.link
+
+    def edit_message_text(self, *args, **kwargs):
+        try:
+            super().edit_message_text(*args, **kwargs)
+        except ApiTelegramException as e:
+            if "message is not modified:" not in str(e):
+                raise e
 
 
 class TelegramBot(BaseBot, metaclass=singleton.Singleton):

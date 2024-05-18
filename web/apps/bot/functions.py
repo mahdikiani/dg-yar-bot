@@ -6,7 +6,6 @@ from celery import shared_task
 from tapsage import TapSageBot
 from tapsage.tapsagebot import Session
 from utils.texttools import telegram_markdown_formatter
-from telebot.apihelper import ApiTelegramException
 import openai
 
 from .Bot import TelegramBot
@@ -20,8 +19,9 @@ client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def get_session(user_id: str) -> Session:
     try:
         sessions = tapsage.list_sessions(user_id)
+        logging.warning(f"Sessions: {user_id} {sessions}")
         if not sessions:
-            session = tapsage.create_session()
+            session = tapsage.create_session(user_id)
         else:
             session = tapsage.retrieve_session(sessions[0].id)
             logging.info(f"\n{len(sessions)}\n{sessions[0]}\n{session}\n\n")
@@ -48,16 +48,13 @@ def ai_response(
         new_piece += msg.message.content
         if new_piece[-1] == " " or len(new_piece) > 50:
             resp_text += new_piece
-            try:
-                if resp_text.count("`") % 2 == 0:
-                    bot.edit_message_text(
-                        text=telegram_markdown_formatter(resp_text),
-                        chat_id=chat_id,
-                        message_id=response_id,
-                        parse_mode="markdownV2",
-                    )
-            except Exception as e:
-                logger.error(f"Error editing message: {e} {resp_text}")
+            if resp_text.count("`") % 2 == 0:
+                bot.edit_message_text(
+                    text=telegram_markdown_formatter(resp_text),
+                    chat_id=chat_id,
+                    message_id=response_id,
+                    parse_mode="markdownV2",
+                )
             new_piece = ""
 
     if resp_text and resp_text[-1] != " ":
@@ -69,18 +66,33 @@ def ai_response(
                 message_id=response_id,
                 parse_mode="markdownV2",
             )
-        except ApiTelegramException as e:
-            if "message is not modified:" not in str(e):
-                logger.error(f"Error:\n{e}\n{resp_text}")
         except Exception as e:
             logger.error(f"Error:\n{e}\n{resp_text}")
 
 
-def voice_response(voice_bytes: BytesIO, **kwargs):
-    logging.warning(f"voice received: {voice_bytes}")
+@shared_task
+def url_response(
+    url: str,
+    user_id: str,
+    chat_id: str,
+    response_id: str,
+    **kwargs,
+):
+    pass
 
+
+def voice_response(voice_bytes: BytesIO, **kwargs):
     transcription = client.audio.transcriptions.create(
         model="whisper-1", file=voice_bytes
     )
-    print(transcription)
     return transcription.text
+
+
+def send_voice_response(text: str, chat_id: str, **kwargs):
+    response = client.audio.speech.create(model="tts-1", voice="alloy", input=text)
+
+    buffer = BytesIO()
+    for data in response.response.iter_bytes():
+        buffer.write(data)
+    buffer.seek(0)
+    bot.send_voice(chat_id, buffer)
