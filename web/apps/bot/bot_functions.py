@@ -267,6 +267,18 @@ def callback_answer(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
     prompt(call.message, bot)
 
 
+def callback_select_ai(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
+    user = call.message.user
+    user.ai_engine = call.data.split("_")[2]
+    user.save()
+    bot.edit_message_text(
+        text="AI Engine selected",
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        reply_markup=keyboards.select_ai_keyboard(user),
+    )
+
+
 def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
     bot.answer_callback_query(call.id)
     logging.warning(
@@ -277,6 +289,8 @@ def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
         return callback_read(call, bot)
     elif call.data.startswith("answer_"):
         return callback_answer(call, bot)
+    elif call.data.startswith("select_ai_"):
+        return callback_select_ai(call, bot)
 
 
 class BotFunctions(metaclass=Singleton):

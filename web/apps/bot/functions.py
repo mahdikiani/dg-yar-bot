@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
+import httpx
 import openai
 from celery import shared_task
 from celery.signals import worker_ready
@@ -10,17 +11,38 @@ from django.contrib.auth import get_user_model
 from tapsage import TapSageBot
 from tapsage.tapsagebot import Session
 
+from apps.accounts.models import AIEngines, BotUser
 from utils.texttools import telegram_markdown_formatter
 
 from . import Bot, keyboards, models
 
-tapsage = TapSageBot(os.getenv("TAPSAGE_API_KEY"), os.getenv("TAPSAGE_BOT_ID"))
 logger = logging.getLogger("bot")
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 User = get_user_model()
 
 
-def get_session(user_id: str, max_session_idle_time: timedelta | int = 3600) -> Session:
+def get_tapsage(user: BotUser):
+    for engine in AIEngines:
+        if user.ai_engine == engine.name:
+            return TapSageBot(os.getenv("TAPSAGE_API_KEY"), engine.tapsage_bot_id)
+
+
+def get_openai():
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    proxy_url = os.getenv("PROXY")
+    client = (
+        openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        if proxy_url is None or proxy_url == ""
+        else openai.OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            http_client=httpx.Client(proxy=proxy_url),
+        )
+    )
+    return client
+
+
+def get_session(
+    tapsage: TapSageBot, user_id: str, max_session_idle_time: timedelta | int = 3600
+) -> Session:
     if isinstance(max_session_idle_time, int):
         max_session_idle_time = timedelta(seconds=max_session_idle_time)
     try:
@@ -58,9 +80,11 @@ def ai_response(
         if kwargs.get("bot", "telegram") == "telegram"
         else Bot.BaleBot()
     )
-    session = get_session(user_id)
+    user = User.objects.get(username=user_id)
+    tapsage = get_tapsage(user)
+    session = get_session(tapsage, user_id)
     stream = tapsage.stream_messages(session, message, split_criteria={"words": True})
-    
+
     resp_text = ""
     new_piece = ""
     for msg in stream:
@@ -81,9 +105,7 @@ def ai_response(
 
             new_piece = ""
 
-    msg = models.Message.objects.create(
-        user=User.objects.get(username=user_id), content=resp_text
-    )
+    msg = models.Message.objects.create(user=user, content=resp_text)
 
     if resp_text:
         try:
@@ -113,6 +135,7 @@ def url_response(
 
 
 def voice_response(voice_bytes: BytesIO, **kwargs):
+    client = get_openai()
     transcription = client.audio.transcriptions.create(
         model="whisper-1", file=voice_bytes
     )
@@ -126,6 +149,8 @@ def send_voice_response(text: str, chat_id: str, **kwargs):
         if kwargs.get("bot", "telegram") == "telegram"
         else Bot.BaleBot()
     )
+    client = get_openai()
+
     response = client.audio.speech.create(model="tts-1", voice="alloy", input=text)
 
     buffer = BytesIO()

@@ -1,6 +1,5 @@
-from django.db import models
-
 from django.contrib.auth.models import AbstractUser
+from django.db import models
 from django.utils import timezone
 
 
@@ -12,6 +11,18 @@ class AIEngines(models.TextChoices):
     claud3opus = "claud-3-opus", "claud-3-opus"
     claud3sonnet = "claud-3-sonnet", "claud-3-sonnet"
     claud3haiku = "claud-3-haiku", "claud-3-haiku"
+
+    @property
+    def tapsage_bot_id(self):
+        return {
+            AIEngines.gpt4o: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.gpt4turbo: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.gpt4: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.gpt35turbo: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.claud3opus: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.claud3sonnet: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.claud3haiku: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+        }[self]
 
     @property
     def price(self):
