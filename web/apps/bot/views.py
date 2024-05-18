@@ -1,10 +1,9 @@
 import json
 
-import telebot
 from django.http import HttpRequest, JsonResponse
 from django.views import View
 
-from . import Bot, bot_functions
+from . import bot_functions
 
 
 class WebhookView(View):

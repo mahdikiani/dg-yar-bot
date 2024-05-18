@@ -1,7 +1,6 @@
 import re
 
 
-
 def escape_markdown(text):
     replacements = [
         ("_", r"\_"),
@@ -22,7 +21,6 @@ def escape_markdown(text):
         ("}", r"\}"),
         (".", r"\."),
         ("!", r"\!"),
-        ("=", r"\="),
     ]
 
     for old, new in replacements:
@@ -31,7 +29,9 @@ def escape_markdown(text):
     return text
 
 
-def telegram_markdown_formatter(text: str):
+def telegram_markdown_formatter(text: str, **kwargs):
+    if kwargs.get("bot", "telegram") != "telegram":
+        return text
     parts = text.split("`")
     for i, p in enumerate(parts):
         if i % 2 == 0:

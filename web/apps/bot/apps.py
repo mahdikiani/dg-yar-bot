@@ -15,7 +15,7 @@ class BotConfig(AppConfig):
     def ready(self) -> None:
         super().ready()
 
-        # from . import Bot
+        # from apps.bot import Bot
 
         # bot = Bot.TelegramBot()
         # self.set_webhook(bot, webhook_name="telegram_webhook")

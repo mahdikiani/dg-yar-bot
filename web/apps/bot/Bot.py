@@ -5,7 +5,6 @@ import singleton
 import telebot
 from telebot.apihelper import ApiTelegramException
 
-
 dotenv.load_dotenv()
 
 
@@ -51,7 +50,7 @@ class TelegramBot(BaseBot, metaclass=singleton.Singleton):
     me = "tbot"  # todo change the name
 
 
-# class BaleBot(BaseBot, metaclass=singleton.Singleton):
-#     token = os.getenv("BALE_TOKEN")
-#     bot_type = "bale"
-#     me = "bale_bot"  # todo change the name
+class BaleBot(BaseBot, metaclass=singleton.Singleton):
+    token = os.getenv("BALE_TOKEN")
+    bot_type = "bale"
+    me = "pixiee_bot"

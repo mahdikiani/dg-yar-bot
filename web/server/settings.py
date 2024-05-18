@@ -95,6 +95,7 @@ INSTALLED_APPS = [
     "import_export",
     "jalali_date",
     #
+    "apps.accounts",
     "apps.bot",
 ]
 
@@ -110,6 +111,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+AUTH_USER_MODEL = "accounts.BotUser"
 
 CELERY_BROKER_URL = os.getenv("DRAGONFLY_URL", "redis://localhost:6379/") + "1"
 CELERY_RESULT_BACKEND = os.getenv("DRAGONFLY_URL", "redis://localhost:6379/") + "2"

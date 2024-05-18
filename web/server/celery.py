@@ -1,3 +1,4 @@
+import logging.config
 import os
 import sys
 
@@ -9,6 +10,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "server.settings")
 from django.conf import settings
+
+logging.config.dictConfig(settings.LOGGING)
 
 # Create a Celery instance and configure it using the settings from settings.py
 project_name = os.getenv("PROJECT_NAME", "server")
