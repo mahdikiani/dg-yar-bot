@@ -1,3 +1,4 @@
+import uuid
 import logging
 import os
 from io import BytesIO
@@ -150,12 +151,10 @@ def command(message: telebot.types.Message, bot: Bot.BaseBot):
                 parse_mode="markdownV2",
             )
         case "new_conversation":
-            session = functions.get_session(message.user.username)
-            if session.dialogueLength:
-                session = functions.tapsage.create_session(message.user.username)
+            session = functions.get_session(user_id=message.user.username)
             return bot.reply_to(message, "New session created")
         case "show_conversation":
-            session = functions.get_session(message.user.username)
+            session = functions.get_session(user_id=message.user.username)
             logging.warning(f"********\n\n{session.messages}\n\n********")
             return bot.reply_to(
                 message,
@@ -165,7 +164,9 @@ def command(message: telebot.types.Message, bot: Bot.BaseBot):
                 ),
             )
         case "conversations":
-            sessions = functions.tapsage.list_sessions(message.user.username)
+            sessions = functions.get_tapsage(message.user).list_sessions(
+                message.user.username
+            )
             return bot.reply_to(
                 message,
                 "\n\n".join(
@@ -331,6 +332,9 @@ def update_bot(update: dict, request_url: str):
     elif request_url.split("/")[-1].startswith("bale"):
         bot = Bot.BaleBot()
 
+    import pprint
+
+    logging.warning(pprint.pformat(update))
     update = telebot.types.Update.de_json(update)
 
     if update:

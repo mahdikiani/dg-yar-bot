@@ -48,6 +48,10 @@ def select_ai_keyboard(user: BotUser, row_width=3):
         if len(row) == row_width:
             markup.add(*row)
             row = []
+
+    if len(row) > 0:
+        markup.add(*row)
+        row = []
     return markup
 
 

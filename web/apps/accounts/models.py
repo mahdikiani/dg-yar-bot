@@ -15,13 +15,13 @@ class AIEngines(models.TextChoices):
     @property
     def tapsage_bot_id(self):
         return {
-            AIEngines.gpt4o: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
-            AIEngines.gpt4turbo: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
-            AIEngines.gpt4: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
-            AIEngines.gpt35turbo: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
-            AIEngines.claud3opus: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
-            AIEngines.claud3sonnet: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
-            AIEngines.claud3haiku: "9abab26b-c45a-4d86-a5e6-8efbf03adb60",
+            AIEngines.gpt4o: "55d1e911-67f1-493c-b4ff-bbafcca0e26b",
+            AIEngines.gpt4turbo: "3e0640f3-286e-4c4d-abea-0993d522771f",
+            AIEngines.gpt4: "288f04e2-728d-4be4-af0b-83ae1b97b87a",
+            AIEngines.gpt35turbo: "03d99ad7-e344-4b0c-bbf5-46609f47d937",
+            AIEngines.claud3opus: "0f87bb21-2357-49a4-a80d-d2f944b89671",
+            AIEngines.claud3sonnet: "f9402e09-18b7-49e9-b08b-ad8bd8836511",
+            AIEngines.claud3haiku: "2db268fe-914c-469e-b597-9ed46dc0f0f3",
         }[self]
 
     @property

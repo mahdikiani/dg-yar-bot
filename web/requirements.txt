@@ -35,7 +35,7 @@ faker
 ipython
 
 singleton_package
-usso>=0.20.4
+usso>=0.20.6
 telegram-bale-bot==4.18.4
 tapsage-client
 openai

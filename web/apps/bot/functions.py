@@ -41,8 +41,12 @@ def get_openai():
 
 
 def get_session(
-    tapsage: TapSageBot, user_id: str, max_session_idle_time: timedelta | int = 3600
+    tapsage: TapSageBot=None, user_id: str=None, max_session_idle_time: timedelta | int = 3600
 ) -> Session:
+    if user_id is None:
+        raise ValueError("user_id is required")
+    if tapsage is None:
+        tapsage = get_tapsage(User.objects.get(username=user_id))
     if isinstance(max_session_idle_time, int):
         max_session_idle_time = timedelta(seconds=max_session_idle_time)
     try:
@@ -95,13 +99,13 @@ def ai_response(
                 try:
                     # logger.info(f"Partial response: {resp_text}")
                     bot.edit_message_text(
-                        text=telegram_markdown_formatter(resp_text, **kwargs),
+                        text=resp_text,
                         chat_id=chat_id,
                         message_id=response_id,
-                        parse_mode="markdownV2",
+                        parse_mode="markdown",
                     )
                 except Exception as e:
-                    logger.error(f"Error:\n{e}\n{resp_text}")
+                    logger.error(f"Error:\n{e}\n")
 
             new_piece = ""
 
@@ -111,10 +115,10 @@ def ai_response(
         try:
             # logger.info(f"Final response: {resp_text}")
             bot.edit_message_text(
-                text=telegram_markdown_formatter(resp_text, **kwargs),
+                text=resp_text,
                 chat_id=chat_id,
                 message_id=response_id,
-                parse_mode="markdownV2",
+                parse_mode="markdown",
                 reply_markup=(
                     keyboards.read_keyboard(msg.pk) if bot.bot_type != "bale" else None
                 ),
