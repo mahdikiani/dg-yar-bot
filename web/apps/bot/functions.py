@@ -41,7 +41,9 @@ def get_openai():
 
 
 def get_session(
-    tapsage: TapSageBot=None, user_id: str=None, max_session_idle_time: timedelta | int = 3600
+    tapsage: TapSageBot = None,
+    user_id: str = None,
+    max_session_idle_time: timedelta | int = 3600,
 ) -> Session:
     if user_id is None:
         raise ValueError("user_id is required")
@@ -75,8 +77,9 @@ def get_session(
 def ai_response(
     message: str,
     user_id: str,
-    chat_id: str,
-    response_id: str,
+    chat_id: str = None,
+    response_id: str = None,
+    inline_message_id: str = None,
     **kwargs,
 ):
     bot = (
@@ -102,6 +105,7 @@ def ai_response(
                         text=resp_text,
                         chat_id=chat_id,
                         message_id=response_id,
+                        inline_message_id=inline_message_id,
                         parse_mode="markdown",
                     )
                 except Exception as e:
@@ -118,9 +122,10 @@ def ai_response(
                 text=resp_text,
                 chat_id=chat_id,
                 message_id=response_id,
+                inline_message_id=inline_message_id,
                 parse_mode="markdown",
                 reply_markup=(
-                    keyboards.read_keyboard(msg.pk) if bot.bot_type != "bale" else None
+                    keyboards.read_keyboard(msg.pk) if bot.bot_type != "bale" and inline_message_id else None
                 ),
             )
         except Exception as e:

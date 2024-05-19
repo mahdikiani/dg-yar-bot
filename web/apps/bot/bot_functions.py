@@ -294,6 +294,40 @@ def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
         return callback_select_ai(call, bot)
 
 
+def inline_query(inline_query: telebot.types.InlineQuery, bot: Bot.BaseBot):
+    results = [
+        telebot.types.InlineQueryResultArticle(
+            id=str(uuid.uuid4()),
+            title="Generate with AI",
+            input_message_content=telebot.types.InputTextMessageContent(
+                message_text="Please wait"
+            ),
+            reply_markup=keyboards.inline_keyboard(),
+        )
+    ]
+    bot.answer_inline_query(inline_query.id, results, cache_time=300)
+
+
+def inline_query_ai(inline_result: telebot.types.ChosenInlineResult, bot: Bot.BaseBot):
+    credentials = {
+            "auth_method": bot.bot_type,
+            "representor": f"{inline_result.from_user.id}",
+        }
+    u = get_usso_api(credentials)
+    user, _ = User.objects.get_or_create(username=u.uid)
+        
+    functions.ai_response.delay(
+        message=inline_result.query,
+        user_id=user.username,
+        inline_message_id=inline_result.inline_message_id,
+        bot=bot.bot_type,
+    )
+    bot.edit_message_text(
+        text="Please wait ...",
+        inline_message_id=inline_result.inline_message_id,
+    )
+
+
 class BotFunctions(metaclass=Singleton):
     is_setup = False
 
@@ -307,6 +341,13 @@ class BotFunctions(metaclass=Singleton):
         for bot_cls in get_all_subclasses(Bot.BaseBot):
             bot = bot_cls()
             setup_bot(bot)
+
+        Bot.TelegramBot().register_inline_handler(
+            inline_query, func=lambda _: True, pass_bot=True
+        )
+        Bot.TelegramBot().register_chosen_inline_handler(
+            inline_query_ai, func=lambda _: True, pass_bot=True
+        )
 
         self.is_setup = True
 
@@ -332,9 +373,6 @@ def update_bot(update: dict, request_url: str):
     elif request_url.split("/")[-1].startswith("bale"):
         bot = Bot.BaleBot()
 
-    import pprint
-
-    logging.warning(pprint.pformat(update))
     update = telebot.types.Update.de_json(update)
 
     if update:

@@ -69,3 +69,11 @@ def answer_keyboard(message_id):
         InlineKeyboardButton("جواب دادن", callback_data=f"answer_{message_id}"),
     )
     return markup
+
+
+def inline_keyboard():
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("رفتن به بات", url=f"https://t.me/tgyt_bot"),
+    )
+    return markup
