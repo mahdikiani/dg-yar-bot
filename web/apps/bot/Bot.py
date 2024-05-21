@@ -12,6 +12,7 @@ class BaseBot(telebot.TeleBot):
     token = ""
     bot_type = "telegram"
     me = ""
+    webhook_route = ""
 
     @property
     def link(self):
@@ -44,13 +45,22 @@ class BaseBot(telebot.TeleBot):
                 raise e
 
 
-class TelegramBot(BaseBot, metaclass=singleton.Singleton):
+class PixieeTelegramBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("TELEGRAM_TOKEN")
     bot_type = "telegram"
-    me = "tbot"  # todo change the name
+    me = "pixiee_ai_bot"  # todo change the name
+    webhook_route = "pixiee-telegram"
+
+
+class TGTelegramBot(BaseBot, metaclass=singleton.Singleton):
+    token = os.getenv("TELEGRAM_TOKEN_dev")
+    bot_type = "telegram"
+    me = "tgyt_bot"  # todo change the name
+    webhook_route = "pixiee-telegram-dev"
 
 
 class BaleBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("BALE_TOKEN")
     bot_type = "bale"
     me = "pixiee_bot"
+    webhook_route = "pixiee-bale"

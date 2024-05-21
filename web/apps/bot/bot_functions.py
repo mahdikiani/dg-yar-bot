@@ -6,6 +6,8 @@ from io import BytesIO
 import telebot
 import usso.api
 from celery import shared_task
+from celery.signals import worker_ready
+from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from singleton import Singleton
@@ -15,6 +17,7 @@ from usso import UserData
 from utils.basic import get_all_subclasses
 from utils.texttools import is_valid_url
 
+from apps.accounts.models import AIEngines
 from . import Bot, functions, keyboards, models
 
 User = get_user_model()
@@ -73,6 +76,7 @@ class UserMiddleware(BaseMiddleware):
 
         save_name = " ".join(
             [
+                f"{self.bot.me}: "
                 f'{from_user.first_name if from_user.first_name else ""}',
                 f'{from_user.last_name if from_user.last_name else ""}',
             ]
@@ -152,10 +156,14 @@ def command(message: telebot.types.Message, bot: Bot.BaseBot):
             )
         case "new_conversation":
             session = functions.get_session(user_id=message.user.username)
+
+            if session.dialogueLength > 0:
+                session = functions.get_tapsage(message.user).create_session(
+                user_id=message.user.username
+            )
             return bot.reply_to(message, "New session created")
         case "show_conversation":
             session = functions.get_session(user_id=message.user.username)
-            logging.warning(f"********\n\n{session.messages}\n\n********")
             return bot.reply_to(
                 message,
                 "\n\n".join(
@@ -184,7 +192,7 @@ def prompt(message: telebot.types.Message, bot: Bot.BaseBot):
             user_id=message.user.username,
             chat_id=message.chat.id,
             response_id=response.message_id,
-            bot=bot.bot_type,
+            bot_name=bot.me,
         )
     except Exception as e:
         logging.error(e)
@@ -201,7 +209,7 @@ def voice(message: telebot.types.Message, bot: Bot.BaseBot):
 
         msg = models.Message.objects.create(user=message.user, content=transcription)
 
-        if message.forward_from:
+        if message.forward_origin:
             return bot.edit_message_text(
                 text=transcription,
                 chat_id=message.chat.id,
@@ -295,14 +303,23 @@ def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
 
 
 def inline_query(inline_query: telebot.types.InlineQuery, bot: Bot.BaseBot):
+    credentials = {
+        "auth_method": bot.bot_type,
+        "representor": f"{inline_query.from_user.id}",
+    }
+    u = get_usso_api(credentials)
+    user, _ = User.objects.get_or_create(username=u.uid)
+    ai_thumbnail_url = AIEngines.thumbnail_url(user.ai_engine)
+
     results = [
         telebot.types.InlineQueryResultArticle(
             id=str(uuid.uuid4()),
             title="Generate with AI",
             input_message_content=telebot.types.InputTextMessageContent(
-                message_text="Please wait"
+                message_text=f"Answer with AI (⏳)\n\n{inline_query.query}"
             ),
             reply_markup=keyboards.inline_keyboard(),
+            thumbnail_url=ai_thumbnail_url,
         )
     ]
     bot.answer_inline_query(inline_query.id, results, cache_time=300)
@@ -310,21 +327,17 @@ def inline_query(inline_query: telebot.types.InlineQuery, bot: Bot.BaseBot):
 
 def inline_query_ai(inline_result: telebot.types.ChosenInlineResult, bot: Bot.BaseBot):
     credentials = {
-            "auth_method": bot.bot_type,
-            "representor": f"{inline_result.from_user.id}",
-        }
+        "auth_method": bot.bot_type,
+        "representor": f"{inline_result.from_user.id}",
+    }
     u = get_usso_api(credentials)
     user, _ = User.objects.get_or_create(username=u.uid)
-        
+
     functions.ai_response.delay(
         message=inline_result.query,
         user_id=user.username,
         inline_message_id=inline_result.inline_message_id,
-        bot=bot.bot_type,
-    )
-    bot.edit_message_text(
-        text="Please wait ...",
-        inline_message_id=inline_result.inline_message_id,
+        bot_name=bot.me,
     )
 
 
@@ -340,14 +353,16 @@ class BotFunctions(metaclass=Singleton):
 
         for bot_cls in get_all_subclasses(Bot.BaseBot):
             bot = bot_cls()
-            setup_bot(bot)
 
-        Bot.TelegramBot().register_inline_handler(
-            inline_query, func=lambda _: True, pass_bot=True
-        )
-        Bot.TelegramBot().register_chosen_inline_handler(
-            inline_query_ai, func=lambda _: True, pass_bot=True
-        )
+            reverse_url = reverse(
+                "bot_webhook", kwargs={"bot_route": bot.webhook_route}
+            )
+            webhook_url = f'https://{os.getenv("DOMAIN")}{reverse_url}'
+            if bot.get_webhook_info().url != webhook_url:
+                bot.delete_webhook()
+                res = bot.set_webhook(url=webhook_url)
+                logging.warning(f"set webhook for {bot} with result: {res}")
+            setup_bot(bot)
 
         self.is_setup = True
 
@@ -362,17 +377,24 @@ def setup_bot(bot: Bot.BaseBot):
         content_types=["text", "voice"],
         pass_bot=True,
     )
+    if bot.bot_type == "telegram":
+        bot.register_inline_handler(inline_query, func=lambda _: True, pass_bot=True)
+        bot.register_chosen_inline_handler(
+            inline_query_ai, func=lambda _: True, pass_bot=True
+        )
 
 
 @shared_task
-def update_bot(update: dict, request_url: str):
+def update_bot(update: dict, request_url: str, bot_route: str, *args, **kwargs):
     BotFunctions()
 
-    if request_url.split("/")[-1].startswith("telegram"):
-        bot = Bot.TelegramBot()
-    elif request_url.split("/")[-1].startswith("bale"):
-        bot = Bot.BaleBot()
-
+    for bot_cls in get_all_subclasses(Bot.BaseBot):
+        bot = bot_cls()
+        if bot.webhook_route == bot_route:
+            break
+    else:
+        raise ValueError(f"Bot not found for {bot_route}")
+    
     update = telebot.types.Update.de_json(update)
 
     if update:
@@ -381,9 +403,15 @@ def update_bot(update: dict, request_url: str):
     return
 
 
+@worker_ready.connect
+def at_start(sender, **kwargs):
+    logging.warning("celery startup")
+    BotFunctions()
+
+
 def main():
     BotFunctions()
-    bot = Bot.TelegramBot()
+    bot = Bot.PixieeTelegramBot()
     setup_bot(bot)
     bot.delete_webhook()
     bot.polling()

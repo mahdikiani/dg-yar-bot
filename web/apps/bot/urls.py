@@ -5,13 +5,8 @@ from .views import WebhookView
 
 urlpatterns = [
     path(
-        f"webhook/telegram",
+        f"webhook/<str:bot_route>",
         csrf_exempt(WebhookView.as_view()),
-        name="telegram_webhook",
-    ),
-    path(
-        f"webhook/bale",
-        csrf_exempt(WebhookView.as_view()),
-        name="bale_webhook",
+        name="bot_webhook",
     ),
 ]

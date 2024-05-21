@@ -113,8 +113,8 @@ MIDDLEWARE = [
 
 AUTH_USER_MODEL = "accounts.BotUser"
 
-CELERY_BROKER_URL = os.getenv("DRAGONFLY_URL", "redis://localhost:6379/") + "1"
-CELERY_RESULT_BACKEND = os.getenv("DRAGONFLY_URL", "redis://localhost:6379/") + "2"
+CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/") + "1"
+CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/") + "2"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -229,14 +229,14 @@ DATABASES = {
     },
 }
 
-DATABASES["default"] = DATABASES["sqlite" if DEBUG else "postgres"]
+DATABASES["default"] = DATABASES["postgres"] # DATABASES["sqlite" if DEBUG else "postgres"]
 
 DB_PREFIX = "django_"
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("DRAGONFLY_URL", "redis://localhost:6379/")
+        "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/")
         + "1",  # Replace with your Redis server's address and port
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",

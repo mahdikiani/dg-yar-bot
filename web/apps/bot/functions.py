@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from utils.basic import get_all_subclasses
 
 import httpx
 import openai
@@ -80,13 +81,16 @@ def ai_response(
     chat_id: str = None,
     response_id: str = None,
     inline_message_id: str = None,
+    bot_name: str = None,
     **kwargs,
 ):
-    bot = (
-        Bot.TelegramBot()
-        if kwargs.get("bot", "telegram") == "telegram"
-        else Bot.BaleBot()
-    )
+    for bot_cls in get_all_subclasses(Bot.BaseBot):
+        bot = bot_cls()
+        if bot.me == bot_name:
+            break
+    else:
+        raise ValueError("Bot not found")
+
     user = User.objects.get(username=user_id)
     tapsage = get_tapsage(user)
     session = get_session(tapsage, user_id)
@@ -96,7 +100,7 @@ def ai_response(
     new_piece = ""
     for msg in stream:
         new_piece += msg.message.content
-        if new_piece[-1] == " " or len(new_piece) > 50:
+        if new_piece[-1] == " " or len(new_piece) > 100:
             resp_text += new_piece
             if resp_text.count("`") % 2 == 0:
                 try:
@@ -125,7 +129,9 @@ def ai_response(
                 inline_message_id=inline_message_id,
                 parse_mode="markdown",
                 reply_markup=(
-                    keyboards.read_keyboard(msg.pk) if bot.bot_type != "bale" and inline_message_id else None
+                    keyboards.read_keyboard(msg.pk)
+                    if bot.bot_type != "bale" and inline_message_id
+                    else None
                 ),
             )
         except Exception as e:
@@ -154,7 +160,7 @@ def voice_response(voice_bytes: BytesIO, **kwargs):
 @shared_task
 def send_voice_response(text: str, chat_id: str, **kwargs):
     bot = (
-        Bot.TelegramBot()
+        Bot.PixieeTelegramBot()
         if kwargs.get("bot", "telegram") == "telegram"
         else Bot.BaleBot()
     )
@@ -167,9 +173,3 @@ def send_voice_response(text: str, chat_id: str, **kwargs):
         buffer.write(data)
     buffer.seek(0)
     bot.send_voice(chat_id, buffer)
-
-
-@worker_ready.connect
-def at_start(sender, **kwargs):
-    # This will run the startup_task when the worker is ready
-    logging.warning(f"Celery Startup {models.Message.objects.all().count()}")

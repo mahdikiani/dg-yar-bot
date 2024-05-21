@@ -11,14 +11,27 @@ services:
     volumes:
       - ./pg.data:/var/lib/postgresql/data/
 
-  dragonfly:
-    image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
-    ulimits:
-      memlock: -1
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     volumes:
-      - ./dragonfly.data:/data
+      - ./redis.data:/data
     networks:
       - data
+      
+  # dragonfly:
+  #   image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+  #   ulimits:
+  #     memlock: -1
+  #   volumes:
+  #     - ./dragonfly.data:/data
+  #   networks:
+  #     - data
 
   celery:
     build: ./web
