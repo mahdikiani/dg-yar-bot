@@ -1,23 +1,22 @@
-import uuid
 import logging
 import os
+import uuid
 from io import BytesIO
 
 import telebot
 import usso.api
+from apps.accounts.models import AIEngines
 from celery import shared_task
 from celery.signals import worker_ready
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from django.utils import timezone
 from singleton import Singleton
 from telebot.handler_backends import BaseMiddleware
 from usso import UserData
-
 from utils.basic import get_all_subclasses
 from utils.texttools import is_valid_url
 
-from apps.accounts.models import AIEngines
 from . import Bot, functions, keyboards, models
 
 User = get_user_model()
@@ -159,8 +158,8 @@ def command(message: telebot.types.Message, bot: Bot.BaseBot):
 
             if session.dialogueLength > 0:
                 session = functions.get_tapsage(message.user).create_session(
-                user_id=message.user.username
-            )
+                    user_id=message.user.username
+                )
             return bot.reply_to(message, "New session created")
         case "show_conversation":
             session = functions.get_session(user_id=message.user.username)
@@ -232,7 +231,7 @@ def voice(message: telebot.types.Message, bot: Bot.BaseBot):
 
 
 def url_response(message: telebot.types.Message, bot: Bot.BaseBot):
-    response = bot.reply_to(message, "Please wait ...")
+    response = bot.reply_to(message, "Please wait url ...")
     try:
         functions.url_response.delay(
             url=message.text,
@@ -352,7 +351,7 @@ class BotFunctions(metaclass=Singleton):
             return
 
         for bot_cls in get_all_subclasses(Bot.BaseBot):
-            bot = bot_cls()
+            bot: Bot.BaseBot = bot_cls()
 
             reverse_url = reverse(
                 "bot_webhook", kwargs={"bot_route": bot.webhook_route}
@@ -389,12 +388,12 @@ def update_bot(update: dict, request_url: str, bot_route: str, *args, **kwargs):
     BotFunctions()
 
     for bot_cls in get_all_subclasses(Bot.BaseBot):
-        bot = bot_cls()
+        bot: Bot.BaseBot = bot_cls()
         if bot.webhook_route == bot_route:
             break
     else:
         raise ValueError(f"Bot not found for {bot_route}")
-    
+
     update = telebot.types.Update.de_json(update)
 
     if update:

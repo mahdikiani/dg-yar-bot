@@ -29,6 +29,20 @@ def escape_markdown(text):
     return text
 
 
+def is_url(string):
+    pattern = re.compile(
+        r"^(https?:\/\/)"  # Protocol
+        r"([a-zA-Z0-9_-]+\.)*"  # Subdomain (optional)
+        r"([a-zA-Z0-9-]{2,})"  # Domain
+        r"(\.[a-zA-Z0-9-]{2,})*"  # Domain extension
+        r"(\.[a-z]{2,6})"  # Top-level domain
+        r"([\/\w .-]*)*"  # Path (optional)
+        r"(\?[;&a-zA-Z0-9%_.~+=-]*)?"  # Query string (optional)
+        r"(#[-a-zA-Z0-9_]*)?$"  # Fragment (optional)
+    )
+    return re.match(pattern, string) is not None
+
+
 def telegram_markdown_formatter(text: str, **kwargs):
     if kwargs.get("bot", "telegram") != "telegram":
         return text

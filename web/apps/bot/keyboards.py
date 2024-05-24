@@ -1,11 +1,10 @@
+from apps.accounts.models import AIEngines, BotUser
 from telebot.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
-
-from apps.accounts.models import AIEngines, BotUser
 
 
 def main_keyboard():

@@ -229,7 +229,9 @@ DATABASES = {
     },
 }
 
-DATABASES["default"] = DATABASES["postgres"] # DATABASES["sqlite" if DEBUG else "postgres"]
+DATABASES["default"] = DATABASES[
+    "postgres"
+]  # DATABASES["sqlite" if DEBUG else "postgres"]
 
 DB_PREFIX = "django_"
 

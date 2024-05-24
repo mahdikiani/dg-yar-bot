@@ -2,20 +2,19 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
-from utils.basic import get_all_subclasses
 
 import httpx
 import openai
+import requests
+from apps.accounts.models import AIEngines, BotUser
 from celery import shared_task
-from celery.signals import worker_ready
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from tapsage import TapSageBot
 from tapsage.tapsagebot import Session
+from utils.basic import get_all_subclasses
 
-from apps.accounts.models import AIEngines, BotUser
-from utils.texttools import telegram_markdown_formatter
-
-from . import Bot, keyboards, models
+from . import Bot, dto, keyboards, models
 
 logger = logging.getLogger("bot")
 User = get_user_model()
@@ -76,6 +75,7 @@ def get_session(
 
 @shared_task
 def ai_response(
+    *,
     message: str,
     user_id: str,
     chat_id: str = None,
@@ -85,7 +85,7 @@ def ai_response(
     **kwargs,
 ):
     for bot_cls in get_all_subclasses(Bot.BaseBot):
-        bot = bot_cls()
+        bot: Bot.BaseBot = bot_cls()
         if bot.me == bot_name:
             break
     else:
@@ -140,13 +140,35 @@ def ai_response(
 
 @shared_task
 def url_response(
+    *,
     url: str,
     user_id: str,
     chat_id: str,
     response_id: str,
+    bot_name: str = None,
     **kwargs,
 ):
-    pass
+    reverse_url = reverse("webpage_webhook")
+    webhook_url = f'https://{os.getenv("DOMAIN")}{reverse_url}'
+
+    r = requests.post(
+        "https://api.pixiee.io/webpages/",
+        json={
+            "url": url,
+            "metadata": {
+                "webhook": webhook_url,
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "response_id": response_id,
+                "bot_name": bot_name,
+            },
+        },
+    )
+    if kwargs.get("raise_for_status", True):
+        r.raise_for_status()
+    webpage = dto.WebpageDTO(**r.json())
+    r_start = requests.post(f"https://api.pixiee.io/webpages/{webpage.uid}/start")
+    r_start.raise_for_status()
 
 
 def voice_response(voice_bytes: BytesIO, **kwargs):
