@@ -238,6 +238,7 @@ def url_response(message: telebot.types.Message, bot: Bot.BaseBot):
             user_id=message.user.username,
             chat_id=message.chat.id,
             response_id=response.message_id,
+            bot_name=bot.me,
         )
     except Exception as e:
         logging.error(e)

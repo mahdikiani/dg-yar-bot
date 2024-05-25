@@ -29,7 +29,7 @@ class WebpageWebhookView(View):
             raise ValueError("Bot not found")
 
         if webpage.ai_data and webpage.ai_data.brief:
-            text = bot.ai_response(webpage.ai_data.brief)
+            text = str(webpage.ai_data.brief)
         else:
             text = webpage.task_report
 

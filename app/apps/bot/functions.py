@@ -11,7 +11,7 @@ from celery import shared_task
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from tapsage import TapSageBot
-from tapsage.tapsagebot import Session
+from tapsage.taptypes import Session
 from utils.basic import get_all_subclasses
 
 from . import Bot, dto, keyboards, models
@@ -153,13 +153,14 @@ def url_response(
 
     r = requests.post(
         "https://api.pixiee.io/webpages/",
+        headers={"Authorization": f'Bearer {os.getenv("PIXIEE_REFRESH_TOKEN")}'},
         json={
             "url": url,
             "metadata": {
                 "webhook": webhook_url,
                 "user_id": user_id,
                 "chat_id": chat_id,
-                "response_id": response_id,
+                "message_id": response_id,
                 "bot_name": bot_name,
             },
         },

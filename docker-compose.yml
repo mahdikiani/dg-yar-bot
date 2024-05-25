@@ -23,7 +23,7 @@ services:
       - ./redis.data:/data
     networks:
       - data
-      
+
   # dragonfly:
   #   image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
   #   ulimits:
@@ -34,22 +34,22 @@ services:
   #     - data
 
   celery:
-    build: ./web
+    build: ./app
     restart: unless-stopped
     env_file: .env
     # command: celery -A server.celery worker -l info
     command: python -m debugpy --listen 0.0.0.0:3000 -m celery --app server.celery worker -l info
     volumes:
-      - ./web/logs/celery.log:/app/logs/celery.log
-      - ./web/db.sqlite3:/app/db.sqlite3
-    #   - ./web:/app
+      - ./app/logs/celery.log:/app/logs/celery.log
+      - ./app/db.sqlite3:/app/db.sqlite3
+    #   - ./app:/app
     ports:
       - 3040:3000
     networks:
       - data
 
   celery-beat:
-    build: ./web
+    build: ./app
     restart: unless-stopped
     env_file: .env
     command: celery -A server.celery beat
@@ -57,19 +57,20 @@ services:
       - data
 
   web:
-    build: ./web
+    build: ./app
     restart: unless-stopped
     env_file: .env
-    command: ./docker-entrypoint.sh
-    # ports:
-    #       - 3030:3000
+    # command: ./docker-entrypoint.sh
+    command: python -m debugpy --listen 0.0.0.0:3000 manage.py runserver 0.0.0.0:80
+    ports:
+          - 3030:3000
     networks:
       - data
       - traefik-net
     volumes:
-      # - ./web/db.sqlite3:/app/db.sqlite3
-      - ./web/logs/web.log:/app/logs/web.log
-      - ./web:/app
+      # - ./app/db.sqlite3:/app/db.sqlite3
+      - ./app/logs/web.log:/app/logs/web.log
+      - ./app:/app
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${PROJECT_NAME}.entrypoints=web"
