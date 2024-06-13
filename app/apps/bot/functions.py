@@ -5,19 +5,23 @@ from io import BytesIO
 
 import httpx
 import openai
-import requests
 from apps.accounts.models import AIEngines, BotUser
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from tapsage import TapSageBot
 from tapsage.taptypes import Session
+from usso.session import UssoSession
 from utils.basic import get_all_subclasses
+from utils.texttools import split_text
 
 from . import Bot, dto, keyboards, models
 
 logger = logging.getLogger("bot")
 User = get_user_model()
+usso_session = UssoSession(
+    os.getenv("USSO_REFRESH_URL"), os.getenv("PIXIEE_REFRESH_TOKEN")
+)
 
 
 def get_tapsage(user: BotUser):
@@ -73,6 +77,15 @@ def get_session(
         return
 
 
+def get_bot(bot_name) -> Bot.BaseBot:
+    for bot_cls in get_all_subclasses(Bot.BaseBot):
+        bot: Bot.BaseBot = bot_cls()
+        if bot.me == bot_name:
+            return bot
+    else:
+        raise ValueError("Bot not found")
+
+
 @shared_task
 def ai_response(
     *,
@@ -84,13 +97,7 @@ def ai_response(
     bot_name: str = None,
     **kwargs,
 ):
-    for bot_cls in get_all_subclasses(Bot.BaseBot):
-        bot: Bot.BaseBot = bot_cls()
-        if bot.me == bot_name:
-            break
-    else:
-        raise ValueError("Bot not found")
-
+    bot = get_bot(bot_name)
     user = User.objects.get(username=user_id)
     tapsage = get_tapsage(user)
     session = get_session(tapsage, user_id)
@@ -116,24 +123,59 @@ def ai_response(
                     logger.error(f"Error:\n{e}\n")
 
             new_piece = ""
+    if new_piece:
+        resp_text += new_piece
 
-    msg = models.Message.objects.create(user=user, content=resp_text)
+    msg_obj = models.Message.objects.create(user=user, content=resp_text)
 
     if resp_text:
         try:
-            # logger.info(f"Final response: {resp_text}")
-            bot.edit_message_text(
-                text=resp_text,
-                chat_id=chat_id,
-                message_id=response_id,
-                inline_message_id=inline_message_id,
-                parse_mode="markdown",
-                reply_markup=(
-                    keyboards.read_keyboard(msg.pk)
-                    if bot.bot_type != "bale" and inline_message_id
-                    else None
-                ),
-            )
+            logging.warning(f"Final response: {len(resp_text)}")
+            messages = split_text(resp_text)
+            if inline_message_id is None:
+                for i, msg in enumerate(messages):
+                    if i == 0:
+                        bot.edit_message_text(
+                            text=msg,
+                            chat_id=chat_id,
+                            message_id=response_id,
+                            inline_message_id=inline_message_id,
+                            parse_mode="markdown",
+                            reply_markup=(
+                                keyboards.read_keyboard(msg_obj.pk)
+                                if i == len(messages) - 1
+                                else None
+                            ),
+                        )
+                    else:
+                        bot.send_message(
+                            chat_id=chat_id,
+                            text=msg,
+                            parse_mode="markdown",
+                            reply_markup=(
+                                keyboards.read_keyboard(msg_obj.pk)
+                                if i == len(messages) - 1
+                                else None
+                            ),
+                        )
+                # bot.delete_message(chat_id, response_id)
+
+            else:
+                bot.edit_message_text(
+                    text=messages[0],
+                    chat_id=chat_id,
+                    message_id=response_id,
+                    inline_message_id=inline_message_id,
+                    parse_mode="markdown",
+                    reply_markup=(
+                        keyboards.read_keyboard(msg_obj.pk)
+                        if bot.bot_type != "bale"
+                        and inline_message_id is None
+                        and len(messages) == 1
+                        else None
+                    ),
+                )
+
         except Exception as e:
             logger.error(f"Error:\n{e}\n{resp_text}")
 
@@ -151,14 +193,15 @@ def url_response(
     reverse_url = reverse("webpage_webhook")
     webhook_url = f'https://{os.getenv("DOMAIN")}{reverse_url}'
 
-    r = requests.post(
+    authenticated_session = usso_session.get_session()
+
+    r = authenticated_session.post(
         "https://api.pixiee.io/webpages/",
-        headers={"Authorization": f'Bearer {os.getenv("PIXIEE_REFRESH_TOKEN")}'},
         json={
             "url": url,
             "metadata": {
                 "webhook": webhook_url,
-                "user_id": user_id,
+                "user_id": str(user_id),
                 "chat_id": chat_id,
                 "message_id": response_id,
                 "bot_name": bot_name,
@@ -168,8 +211,50 @@ def url_response(
     if kwargs.get("raise_for_status", True):
         r.raise_for_status()
     webpage = dto.WebpageDTO(**r.json())
-    r_start = requests.post(f"https://api.pixiee.io/webpages/{webpage.uid}/start")
+    r_start = authenticated_session.post(
+        f"https://api.pixiee.io/webpages/{webpage.uid}/start"
+    )
     r_start.raise_for_status()
+
+
+@shared_task
+def content_response(
+    *,
+    wid: str,
+    user_id: str,
+    chat_id: str = None,
+    response_id: str = None,
+    bot_name: str = None,
+    **kwargs,
+):
+    bot = get_bot(bot_name)
+    user = User.objects.get(username=user_id)
+    session = usso_session.get_session()
+    r = session.get(f"https://api.pixiee.io/webpages/{wid}")
+    r.raise_for_status()
+    webpage = dto.WebpageDTO(**r.json())
+
+    key = "ads_for_brand"
+    data = webpage.ai_data.model_dump()
+    data["brief"] = str(webpage.ai_data.brief)
+    r = session.post(f"https://api.pixiee.io/ai/{key}", json=data)
+    r.raise_for_status()
+    response = r.json()
+
+    text = ""
+    for k, v in response.items():
+        text += f"*{k.capitalize()}*:\n"
+        for i, msg in enumerate(v):
+            text += f"{i+1}. `{msg}`\n"
+        text += "\n"
+
+    bot.send_message(
+        text=text,
+        chat_id=chat_id,
+        parse_mode="markdown",
+        reply_markup=keyboards.content_keyboard(),
+    )
+    bot.delete_message(chat_id, response_id)
 
 
 def voice_response(voice_bytes: BytesIO, **kwargs):
@@ -181,12 +266,8 @@ def voice_response(voice_bytes: BytesIO, **kwargs):
 
 
 @shared_task
-def send_voice_response(text: str, chat_id: str, **kwargs):
-    bot = (
-        Bot.PixieeTelegramBot()
-        if kwargs.get("bot", "telegram") == "telegram"
-        else Bot.BaleBot()
-    )
+def send_voice_response(text: str, chat_id: str, bot_name: str, **kwargs):
+    bot = get_bot(bot_name)
     client = get_openai()
 
     response = client.audio.speech.create(model="tts-1", voice="alloy", input=text)

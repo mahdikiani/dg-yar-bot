@@ -15,7 +15,7 @@ from singleton import Singleton
 from telebot.handler_backends import BaseMiddleware
 from usso import UserData
 from utils.basic import get_all_subclasses
-from utils.texttools import is_valid_url
+from utils.texttools import is_valid_url, split_text
 
 from . import Bot, functions, keyboards, models
 
@@ -156,20 +156,24 @@ def command(message: telebot.types.Message, bot: Bot.BaseBot):
         case "new_conversation":
             session = functions.get_session(user_id=message.user.username)
 
-            if session.dialogueLength > 0:
+            if len(session.messages) > 0:
                 session = functions.get_tapsage(message.user).create_session(
                     user_id=message.user.username
                 )
             return bot.reply_to(message, "New session created")
         case "show_conversation":
             session = functions.get_session(user_id=message.user.username)
-            return bot.reply_to(
-                message,
+            messages = split_text(
                 "\n\n".join(
                     ["Your conversation in this session:"]
                     + [f"{msg.type}: {msg.content}" for msg in session.messages]
-                ),
+                )
             )
+            for msg in messages:
+                bot.send_message(
+                    chat_id=message.chat.id, text=msg, parse_mode="markdown"
+                )
+            return
         case "conversations":
             sessions = functions.get_tapsage(message.user).list_sessions(
                 message.user.username
@@ -263,8 +267,8 @@ def message(message: telebot.types.Message, bot: Bot.BaseBot):
 def callback_read(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
     message_id = int(call.data.split("_")[1])
     message = models.Message.objects.get(id=message_id)
-    functions.send_voice_response(
-        message.content, call.message.chat.id, bot=bot.bot_type
+    functions.send_voice_response.delay(
+        message.content, call.message.chat.id, bot_name=bot.me
     )
 
 
@@ -288,11 +292,42 @@ def callback_select_ai(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
     )
 
 
-def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
-    bot.answer_callback_query(call.id)
-    logging.warning(
-        f"Callback: {call.message.from_user.username} {bot.bot_type} {call.data}"
+def callback_brief(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
+    # bot.edit_message_reply_markup(
+    #     chat_id=call.message.chat.id,
+    #     message_id=call.message.message_id,
+    #     reply_markup=None,
+    # )
+    wid = call.data.split("_")[2]
+    response = bot.reply_to(call.message, "Please wait for content ...")
+    functions.content_response.delay(
+        wid=wid,
+        user_id=call.message.user.username,
+        chat_id=call.message.chat.id,
+        response_id=response.id,
+        bot_name=bot.me,
     )
+
+
+def callback_content_select(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
+    tuple_string = call.data.split("_")[2]
+    tuple_elements = tuple_string.strip("()").split(",")
+    new_state = tuple(map(int, tuple_elements))
+    bot.edit_message_reply_markup(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        reply_markup=keyboards.content_keyboard(new_state),
+    )
+
+
+def callback_content_submit(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
+    tuple_string = call.data.split("_")[2]
+    tuple_elements = tuple_string.strip("()").split(",")
+    tuple(map(int, tuple_elements))
+
+
+def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
+    bot.answer_callback_query(call.id, text="Processing ...")
 
     if call.data.startswith("read_"):
         return callback_read(call, bot)
@@ -300,6 +335,12 @@ def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):
         return callback_answer(call, bot)
     elif call.data.startswith("select_ai_"):
         return callback_select_ai(call, bot)
+    elif call.data.startswith("brief_textai_"):
+        return callback_brief(call, bot)
+    elif call.data.startswith("content_select_"):
+        callback_content_select(call, bot)
+    elif call.data.startswith("content_submit_"):
+        callback_content_submit(call, bot)
 
 
 def inline_query(inline_query: telebot.types.InlineQuery, bot: Bot.BaseBot):

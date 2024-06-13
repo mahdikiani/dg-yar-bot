@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
     env_file: .env
     # command: ./docker-entrypoint.sh
-    command: python -m debugpy --listen 0.0.0.0:3000 manage.py runserver 0.0.0.0:80
+    # command: python -m debugpy --listen 0.0.0.0:3000 manage.py runserver 0.0.0.0:80
     ports:
           - 3030:3000
     networks:

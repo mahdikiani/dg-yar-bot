@@ -4,7 +4,7 @@ from django.http import HttpRequest, JsonResponse
 from django.views import View
 from utils.basic import get_all_subclasses
 
-from . import Bot, bot_functions, dto
+from . import Bot, bot_functions, dto, keyboards
 
 
 class WebhookView(View):
@@ -29,9 +29,45 @@ class WebpageWebhookView(View):
             raise ValueError("Bot not found")
 
         if webpage.ai_data and webpage.ai_data.brief:
-            text = str(webpage.ai_data.brief)
+            text = str(webpage.ai_data)
+            markup = keyboards.brief_keyboard(webpage.uid)
+        else:
+            text = f"{webpage.task_report} ..."
+            markup = None
+
+        if webpage.metadata.get("chat_id") and webpage.metadata.get("message_id"):
+            bot.delete_message(
+                chat_id=webpage.metadata.get("chat_id"),
+                message_id=webpage.metadata.get("message_id"),
+            )
+            bot.send_message(
+                text=text,
+                chat_id=webpage.metadata.get("chat_id"),
+                parse_mode="markdown",
+                reply_markup=markup,
+            )
+
+        return JsonResponse(
+            {"ok": f"Webpage webhook request processed for {webpage.uid}"}
+        )
+
+
+class ProjectWebhookView(View):
+    def post(self, request: HttpRequest, *args, **kwargs):
+        webpage = dto.WebpageDTO(**json.loads(request.body))
+        for bot_cls in get_all_subclasses(Bot.BaseBot):
+            bot: Bot.BaseBot = bot_cls()
+            if webpage.metadata and bot.me == webpage.metadata.get("bot_name"):
+                break
+        else:
+            raise ValueError("Bot not found")
+
+        if webpage.ai_data and webpage.ai_data.brief:
+            text = str(webpage.ai_data)
+            markup = keyboards.brief_keyboard(webpage.uid)
         else:
             text = webpage.task_report
+            markup = None
 
         if webpage.metadata.get("chat_id") and webpage.metadata.get("message_id"):
             bot.edit_message_text(
@@ -39,6 +75,9 @@ class WebpageWebhookView(View):
                 chat_id=webpage.metadata.get("chat_id"),
                 message_id=webpage.metadata.get("message_id"),
                 parse_mode="markdown",
+                reply_markup=markup,
             )
 
-        return JsonResponse({"ok": "POST request processed"})
+        return JsonResponse(
+            {"ok": f"Webpage webhook request processed for {webpage.uid}"}
+        )

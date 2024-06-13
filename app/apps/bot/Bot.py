@@ -41,7 +41,10 @@ class BaseBot(telebot.TeleBot):
         try:
             super().edit_message_text(*args, **kwargs)
         except ApiTelegramException as e:
-            if "message is not modified:" not in str(e):
+            if not (
+                "message is not modified:" in str(e)
+                or "message text is empty" in str(e)
+            ):
                 raise e
 
 

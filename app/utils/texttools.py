@@ -68,3 +68,41 @@ url_pattern = re.compile(
 
 def is_valid_url(url: str) -> bool:
     return re.match(url_pattern, url) is not None
+
+
+def split_text(text, max_chunk_size=4096):
+    # Split text into paragraphs
+    paragraphs = text.split("\n")
+    chunks = []
+    current_chunk = ""
+
+    for paragraph in paragraphs:
+        if len(current_chunk) + len(paragraph) + 1 > max_chunk_size:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+        if len(paragraph) > max_chunk_size:
+            # Split paragraph into sentences
+            sentences = re.split(r"(?<=[.!?]) +", paragraph)
+            for sentence in sentences:
+                if len(current_chunk) + len(sentence) + 1 > max_chunk_size:
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                        current_chunk = ""
+                if len(sentence) > max_chunk_size:
+                    # Split sentence into words
+                    words = sentence.split(" ")
+                    for word in words:
+                        if len(current_chunk) + len(word) + 1 > max_chunk_size:
+                            if current_chunk:
+                                chunks.append(current_chunk.strip())
+                                current_chunk = ""
+                        current_chunk += word + " "
+                else:
+                    current_chunk += sentence + " "
+        else:
+            current_chunk += paragraph + "\n"
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks

@@ -10,8 +10,13 @@ urlpatterns = [
         name="bot_webhook",
     ),
     path(
-        "webpage_webhook/",
+        "webpage-webhook/",
         csrf_exempt(views.WebpageWebhookView.as_view()),
         name="webpage_webhook",
+    ),
+    path(
+        "project-webhook/",
+        csrf_exempt(views.ProjectWebhookView.as_view()),
+        name="project_webhook",
     ),
 ]

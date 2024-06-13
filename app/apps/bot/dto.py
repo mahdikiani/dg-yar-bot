@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Language(str, Enum):
@@ -15,8 +15,11 @@ class ProductInfo(BaseModel):
     name: str
     description: str
 
+    def __str__(self) -> str:
+        return f"{self.name}: {self.description}"
 
-class ProjectBrief(BaseModel):
+
+class Brief(BaseModel):
     description: str | None = None
     attention: str | None = None
     interest: str | None = None
@@ -51,6 +54,8 @@ class ProjectBrief(BaseModel):
 
 
 class SourceAIData(BaseModel):
+    brand_name: str | None = None
+    brief: Brief | None = None
     favicon: str | None = None
     colors: list[str] | None = None
     fonts: list[str] | None = None
@@ -58,23 +63,62 @@ class SourceAIData(BaseModel):
     tone: Literal["friendly", "professional", "informal", "enthusiastic"] | None = None
     products: list[ProductInfo] | None = None
     product_index: int | None = None
-    brief: ProjectBrief | None = None
+
+    def __str__(self, lang: Language = Language.Persian) -> str:
+        match lang:
+            case Language.Persian:
+                brand = "برند"
+                products = "محصولات"
+                audience = "مخاطب"
+                tone = "لحن"
+            case _:
+                brand = "brand"
+                products = "products"
+                audience = "audience"
+                tone = "tone"
+
+        return "\n\n".join(
+            [
+                f"{brand}: {self.brand_name}",
+                str(self.brief),
+                (
+                    f"{products}:\n"
+                    + "\n".join([str(product) for product in self.products])
+                    if self.products
+                    else ""
+                ),
+                f"{audience}: {self.audience}",
+                f"{tone}: {self.tone}",
+            ]
+        )
 
 
-class WebpageDTO(BaseModel):
+class BaseEntity(BaseModel):
     id: str | None = None
     uid: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
     is_deleted: bool = False
     metadata: dict[str, Any] | None = None
 
+
+class TaskLogRecord(BaseModel):
+    reported_at: datetime = Field(default_factory=datetime.now)
+    message: str
+    task_status: Literal["draft", "init", "processing", "done", "error"]
+    duration: int = 0
+    data: dict | None = None
+
+
+class TaskMixin(BaseModel):
     task_status: Literal["draft", "init", "processing", "done", "error"] = "draft"
     task_report: str | None = None
     task_progress: int = -1
-    task_logs: list = []
+    task_logs: list[TaskLogRecord] = []
     task_references: list[uuid.UUID | list] | None = None
 
+
+class WebpageDTO(BaseEntity, TaskMixin):
     url: str
     page_source: str | None = None
     crawl_method: str | None = None
