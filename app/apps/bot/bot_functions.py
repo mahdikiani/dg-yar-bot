@@ -324,6 +324,7 @@ def callback_content_submit(call: telebot.types.CallbackQuery, bot: Bot.BaseBot)
     tuple_string = call.data.split("_")[2]
     tuple_elements = tuple_string.strip("()").split(",")
     tuple(map(int, tuple_elements))
+    functions.content_submit.delay()
 
 
 def callback(call: telebot.types.CallbackQuery, bot: Bot.BaseBot):

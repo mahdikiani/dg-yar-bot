@@ -24,7 +24,8 @@ usso_session = UssoSession(
 )
 
 
-def get_tapsage(user: BotUser):
+def get_tapsage(user_id: str):
+    user: BotUser = User.objects.get(username=user_id)
     for engine in AIEngines:
         if user.ai_engine == engine.name:
             return TapSageBot(os.getenv("TAPSAGE_API_KEY"), engine.tapsage_bot_id)
@@ -57,23 +58,24 @@ def get_session(
         max_session_idle_time = timedelta(seconds=max_session_idle_time)
     try:
         sessions = tapsage.list_sessions(user_id)
+
         if not sessions:
             session = tapsage.create_session(user_id)
             return session
 
         session = tapsage.retrieve_session(sessions[-1].id)
+        
         if (
-            session.dialogueLength > 0
-            and datetime.now(timezone.utc) - session.messages[-1].timestamp
+            session.messages and
+            datetime.now(timezone.utc) - session.messages[-1].timestamp
             > max_session_idle_time
         ):
             session = tapsage.create_session(user_id)
             return session
 
-        # logging.info(f"\n{len(sessions)}\n{sessions[0]}\n{session}\n\n")
         return session
     except Exception as e:
-        logging.error(e)
+        logging.error(f"Tapsage get session error {e}")
         return
 
 
@@ -98,8 +100,7 @@ def ai_response(
     **kwargs,
 ):
     bot = get_bot(bot_name)
-    user = User.objects.get(username=user_id)
-    tapsage = get_tapsage(user)
+    tapsage = get_tapsage(user_id)
     session = get_session(tapsage, user_id)
     stream = tapsage.stream_messages(session, message, split_criteria={"words": True})
 
@@ -126,6 +127,7 @@ def ai_response(
     if new_piece:
         resp_text += new_piece
 
+    user = User.objects.get(username=user_id)
     msg_obj = models.Message.objects.create(user=user, content=resp_text)
 
     if resp_text:
@@ -277,3 +279,17 @@ def send_voice_response(text: str, chat_id: str, bot_name: str, **kwargs):
         buffer.write(data)
     buffer.seek(0)
     bot.send_voice(chat_id, buffer)
+
+
+@shared_task
+def content_submit(text: str, chat_id: str, bot_name: str, **kwargs):
+    bot = get_bot(bot_name)
+    client = get_openai()
+
+    response = client.images.create(model="clip-vit-base-patch32", prompt=text)
+
+    buffer = BytesIO()
+    for data in response.response.iter_bytes():
+        buffer.write(data)
+    buffer.seek(0)
+    bot.send_image(chat_id, buffer)
