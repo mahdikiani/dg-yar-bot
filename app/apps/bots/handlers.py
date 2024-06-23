@@ -14,7 +14,18 @@ def get_bot(bot_name: str) -> Bot.BaseBot:
         if bot.me == bot_name:
             return bot
     else:
-        raise ValueError("Bot not found")
+        logging.error(f"Bot not found by name: {bot_name}")
+        raise ValueError("Bot not found by name")
+
+
+def get_bot_by_route(bot_route: str) -> Bot.BaseBot:
+    for bot_cls in get_all_subclasses(Bot.BaseBot):
+        bot: Bot.BaseBot = bot_cls()
+        if bot.webhook_route == bot_route:
+            return bot
+    else:
+        logging.error(f"Bot not found by route: {bot_route}")
+        raise ValueError("Bot not found by route")
 
 
 class BotFunctions(metaclass=singleton.Singleton):
@@ -36,9 +47,10 @@ class BotFunctions(metaclass=singleton.Singleton):
         self.is_setup = True
 
     async def setup_webhook(self, bot: Bot.BaseBot):
-        # reverse_url = reverse("bot_webhook", kwargs={"bot_route": bot.webhook_route})
-        reverse_url = f"bots/webhook/{bot.webhook_route}"
-        webhook_url = f"https://{Settings().root_url}/{reverse_url}"
+        from apps.bots import routes
+
+        reverse_url = routes.get_reverse_url(name="bot_update", bot=bot.webhook_route)
+        webhook_url = f"https://{Settings().root_url}{reverse_url}"
         if (await bot.get_webhook_info()).url != webhook_url:
             await bot.delete_webhook()
             res = await bot.set_webhook(url=webhook_url)
@@ -66,14 +78,7 @@ class BotFunctions(metaclass=singleton.Singleton):
 
 
 async def update_bot(bot_route: str, update_dict: dict, *args, **kwargs):
-    for bot_cls in get_all_subclasses(Bot.BaseBot):
-        bot: Bot.BaseBot = bot_cls()
-        if bot.webhook_route == bot_route:
-            break
-    else:
-        logging.error(f"Bot not found for {bot_route}")
-        raise ValueError(f"Bot not found for {bot_route}")
-
+    bot = get_bot_by_route(bot_route)
     update = async_telebot.types.Update.de_json(update_dict)
 
     if update:

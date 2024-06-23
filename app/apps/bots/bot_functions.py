@@ -6,7 +6,7 @@ from apps.accounts.handlers import get_user_profile, get_usso_user
 from apps.ai.models import AIEngines
 from apps.bots import Bot, functions, keyboards, models, schemas
 from telebot import async_telebot
-from utils.texttools import is_valid_url, split_text
+from utils.texttools import is_valid_url
 
 logger = logging.getLogger("bot")
 
@@ -65,38 +65,27 @@ async def command(message: schemas.MessageOwned, bot: Bot.BaseBot):
                 parse_mode="markdownV2",
             )
         case "new_conversation":
-            session = await functions.get_tapsage_session(user_id=message.user.uid)
-
-            if len(session.messages) > 0:
-                # TODO
-                session = functions.get_tapsage(message.user).create_session(
-                    user_id=message.user.uid
-                )
+            session = await functions.get_tapsage_session(
+                profile=message.profile, max_session_idle_time=1
+            )
             return await bot.reply_to(message, "New session created")
         case "show_conversation":
-            # TODO
-            session = await functions.get_tapsage_session(user_id=message.user.uid)
-            messages = split_text(
-                "\n\n".join(
-                    ["Your conversation in this session:"]
-                    + [f"{msg.type}: {msg.content}" for msg in session.messages]
-                )
+            session = await functions.get_tapsage_session(profile=message.profile)
+            messages_text = "\n\n".join(
+                ["Your conversation in this session:"]
+                + [f"{msg.type}: {msg.content}" for msg in session.messages]
             )
-            for msg in messages:
-                await bot.send_message(
-                    chat_id=message.chat.id, text=msg, parse_mode="markdown"
-                )
-            return
+
+            return await bot.send_message(
+                chat_id=message.chat.id, text=messages_text, parse_mode="markdown"
+            )
         case "conversations":
-            # TODO
-            sessions = functions.get_tapsage(message.user).list_sessions(
+            sessions = await functions.get_tapsage(message.profile).list_sessions(
                 message.user.uid
             )
             return await bot.reply_to(
                 message,
-                "\n\n".join(
-                    [f"{session.id} {session.dialogueLength}" for session in sessions]
-                ),
+                "\n\n".join([f"{session.id}" for session in sessions]),
                 reply_markup=keyboards.main_keyboard(),
             )
 
@@ -124,8 +113,7 @@ async def voice(message: schemas.MessageOwned, bot: Bot.BaseBot):
         voice_file = await bot.download_file(voice_info.file_path)
         voice_bytes = BytesIO(voice_file)
         voice_bytes.name = "voice.ogg"
-        # TODO
-        transcription = functions.voice_response(voice_bytes)
+        transcription = await functions.stt_response(voice_bytes)
 
         msg = models.Message(user_id=message.user.uid, content=transcription)
         await msg.save()
@@ -135,7 +123,7 @@ async def voice(message: schemas.MessageOwned, bot: Bot.BaseBot):
                 text=transcription,
                 chat_id=message.chat.id,
                 message_id=response.message_id,
-                reply_markup=keyboards.answer_keyboard(msg.pk),
+                reply_markup=keyboards.answer_keyboard(msg.uid),
             )
 
         await bot.edit_message_text(
@@ -146,6 +134,7 @@ async def voice(message: schemas.MessageOwned, bot: Bot.BaseBot):
 
         response.text = transcription
         response.user = message.user
+        response.profile = message.profile
         await prompt(response, bot)
 
     except Exception as e:
@@ -155,8 +144,7 @@ async def voice(message: schemas.MessageOwned, bot: Bot.BaseBot):
 async def url_response(message: schemas.MessageOwned, bot: Bot.BaseBot):
     response = await bot.reply_to(message, "Please wait url ...")
     try:
-        # TODO
-        functions.url_response(
+        await functions.url_response(
             url=message.text,
             user_id=message.user.uid,
             chat_id=message.chat.id,
@@ -184,19 +172,19 @@ async def message(message: schemas.MessageOwned, bot: Bot.BaseBot):
 
 
 async def callback_read(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
-    message_id = int(call.data.split("_")[1])
-    # TODO
-    message = models.Message.objects.get(id=message_id)
-    # TODO
-    functions.send_voice_response(
-        message.content, call.message.chat.id, bot_name=bot.me
+    message_id = uuid.UUID(call.data.split("_")[1])
+    message: models.Message = await models.Message.get_item(
+        uid=message_id, user_id=call.message.user.uid
     )
+    voice = await functions.tts_response(message.content)
+    await bot.send_voice(call.message.chat.id, voice)
 
 
 async def callback_answer(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
-    message_id = int(call.data.split("_")[1])
-    # TODO
-    message = models.Message.objects.get(id=message_id)
+    message_id = uuid.UUID(call.data.split("_")[1])
+    message: models.Message = await models.Message.get_item(
+        uid=message_id, user_id=call.message.user.uid
+    )
     call.message.text = message.content
 
     await prompt(call.message, bot)
@@ -216,17 +204,10 @@ async def callback_select_ai(call: async_telebot.types.CallbackQuery, bot: Bot.B
 
 
 async def callback_brief(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
-    # bot.edit_message_reply_markup(
-    #     chat_id=call.message.chat.id,
-    #     message_id=call.message.message_id,
-    #     reply_markup=None,
-    # )
     wid = call.data.split("_")[2]
     response = await bot.reply_to(call.message, "Please wait for content ...")
-    # TODO
-    functions.content_response(
+    await functions.content_response(
         wid=wid,
-        user_id=call.message.user.uid,
         chat_id=call.message.chat.id,
         response_id=response.id,
         bot_name=bot.me,
@@ -254,7 +235,7 @@ async def callback_content_submit(
     tuple_elements = tuple_string.strip("()").split(",")
     tuple(map(int, tuple_elements))
     # TODO
-    functions.content_submit()
+    await functions.content_submit()
 
 
 async def callback(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):

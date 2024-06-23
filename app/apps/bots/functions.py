@@ -1,5 +1,4 @@
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
@@ -8,31 +7,30 @@ import openai
 from apps.accounts.schemas import Profile
 from apps.ai.models import AIEngines
 from apps.bots import handlers, keyboards, models
+from apps.webpage.schemas import Webpage
 from server.config import Settings
 from tapsage.async_tapsage import AsyncTapSageBot
 from tapsage.taptypes import Session
-from usso.session import UssoSession
+from usso.async_session import AsyncUssoSession
 from utils.texttools import split_text
 
 logger = logging.getLogger("bot")
-usso_session = UssoSession(
-    os.getenv("USSO_REFRESH_URL"), os.getenv("PIXIEE_REFRESH_TOKEN")
-)
 
 
 def get_tapsage(profile: Profile):
     for engine in AIEngines:
         if profile.data.ai_engine.name == engine.name:
-            return AsyncTapSageBot(os.getenv("TAPSAGE_API_KEY"), engine.tapsage_bot_id)
+            return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
 
 
-def get_openai():
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    proxy_url = os.getenv("PROXY")
+def get_openai() -> openai.AsyncOpenAI:
+    openai.api_key = Settings.OPENAI_API_KEY
+    proxy_url = Settings.PROXY
+
     if proxy_url:
         proxies = {
-            "http://": proxy_url,
-            "https://": proxy_url,
+            "http": proxy_url,
+            "https": proxy_url,
         }
         http_client = httpx.AsyncClient(proxies=proxies)
     else:
@@ -46,16 +44,18 @@ def get_openai():
 
 
 async def get_tapsage_session(
-    tapsage: AsyncTapSageBot = None,
-    user_id: str = None,
+    profile: Profile,
+    tapsage: AsyncTapSageBot | None = None,
     max_session_idle_time: timedelta | int = Settings.MAX_SESSION_IDLE_TIME,
 ) -> Session:
-    if user_id is None:
-        raise ValueError("user_id is required")
+    if profile is None:
+        raise ValueError("profile is required")
     if tapsage is None:
-        raise ValueError("tapsage is required")
+        tapsage = get_tapsage(profile)
     if isinstance(max_session_idle_time, int):
         max_session_idle_time = timedelta(seconds=max_session_idle_time)
+
+    user_id = str(profile.user_id)
 
     try:
         sessions = await tapsage.list_sessions(user_id)
@@ -90,7 +90,7 @@ async def ai_response(
 ):
     bot = handlers.get_bot(bot_name)
     tapsage = get_tapsage(profile)
-    session = await get_tapsage_session(tapsage, profile.user_id, **kwargs)
+    session = await get_tapsage_session(profile=profile, tapsage=tapsage, **kwargs)
     stream = tapsage.stream_messages(session, message, split_criteria={"words": True})
 
     resp_text = ""
@@ -120,7 +120,7 @@ async def ai_response(
 
     if resp_text:
         try:
-            logging.warning(f"Final response: {len(resp_text)}")
+            # logging.warning(f"Final response: {len(resp_text)}")
             messages = split_text(resp_text)
             if inline_message_id is None:
                 for i, msg in enumerate(messages):
@@ -157,13 +157,6 @@ async def ai_response(
                     message_id=response_id,
                     inline_message_id=inline_message_id,
                     parse_mode="markdown",
-                    reply_markup=(
-                        keyboards.read_keyboard(msg_obj.uid)
-                        if bot.bot_type != "bale"
-                        and inline_message_id is None
-                        and len(messages) == 1
-                        else None
-                    ),
                 )
 
         except Exception as e:
@@ -179,55 +172,60 @@ async def url_response(
     bot_name: str = None,
     **kwargs,
 ):
-    reverse_url = reverse("webpage_webhook")
-    webhook_url = f'https://{os.getenv("DOMAIN")}{reverse_url}'
+    from apps.bots.routes import get_reverse_url
 
-    authenticated_session = usso_session.get_session()
+    reverse_url = get_reverse_url("webpage_webhook")
+    webhook_url = f"https://{Settings.root_url}{reverse_url}"
 
-    r = authenticated_session.post(
-        "https://api.pixiee.io/webpages/",
-        json={
-            "url": url,
-            "metadata": {
-                "webhook": webhook_url,
-                "user_id": str(user_id),
-                "chat_id": chat_id,
-                "message_id": response_id,
-                "bot_name": bot_name,
+    async with AsyncUssoSession(
+        Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
+    ) as session:
+        async with session.post(
+            Webpage.create_url(),
+            json={
+                "url": url,
+                "metadata": {
+                    "webhook": webhook_url,
+                    "user_id": str(user_id),
+                    "chat_id": chat_id,
+                    "message_id": response_id,
+                    "bot_name": bot_name,
+                },
             },
-        },
-    )
-    if kwargs.get("raise_for_status", True):
-        r.raise_for_status()
-    webpage = dto.WebpageDTO(**r.json())
-    r_start = authenticated_session.post(
-        f"https://api.pixiee.io/webpages/{webpage.uid}/start"
-    )
-    r_start.raise_for_status()
+        ) as r:
+            if kwargs.get("raise_for_status", True):
+                r.raise_for_status()
+            webpage = Webpage(**await r.json())
+
+        async with session.post(
+            f"https://api.pixiee.io/webpages/{webpage.uid}/start"
+        ) as r_start:
+            r_start.raise_for_status()
 
 
 async def content_response(
     *,
     wid: str,
-    user_id: str,
     chat_id: str = None,
     response_id: str = None,
     bot_name: str = None,
     **kwargs,
 ):
     bot = handlers.get_bot(bot_name)
-    user = User.objects.get(username=user_id)
-    session = usso_session.get_session()
-    r = session.get(f"https://api.pixiee.io/webpages/{wid}")
-    r.raise_for_status()
-    webpage = dto.WebpageDTO(**r.json())
+    async with AsyncUssoSession(
+        Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
+    ) as session:
+        async with session.get(f"https://api.pixiee.io/webpages/{wid}") as r:
+            r.raise_for_status()
+            webpage = Webpage(**await r.json())
 
-    key = "ads_for_brand"
-    data = webpage.ai_data.model_dump()
-    data["brief"] = str(webpage.ai_data.brief)
-    r = session.post(f"https://api.pixiee.io/ai/{key}", json=data)
-    r.raise_for_status()
-    response = r.json()
+        key = "ads_for_brand"
+        data = webpage.ai_data.model_dump()
+        data["brief"] = str(webpage.ai_data.brief)
+
+        async with session.post(f"https://api.pixiee.io/ai/{key}", json=data) as r:
+            r.raise_for_status()
+            response: dict[str, list] = await r.json()
 
     text = ""
     for k, v in response.items():
@@ -236,44 +234,36 @@ async def content_response(
             text += f"{i+1}. `{msg}`\n"
         text += "\n"
 
-    bot.send_message(
+    await bot.send_message(
         text=text,
         chat_id=chat_id,
         parse_mode="markdown",
         reply_markup=keyboards.content_keyboard(),
     )
-    bot.delete_message(chat_id, response_id)
+    await bot.delete_message(chat_id, response_id)
 
 
-def voice_response(voice_bytes: BytesIO, **kwargs):
+async def stt_response(voice_bytes: BytesIO, **kwargs):
     client = get_openai()
-    transcription = client.audio.transcriptions.create(
+    transcription = await client.audio.transcriptions.create(
         model="whisper-1", file=voice_bytes
     )
     return transcription.text
 
 
-async def send_voice_response(text: str, chat_id: str, bot_name: str, **kwargs):
-    bot = get_bot(bot_name)
+async def tts_response(text: str, **kwargs):
     client = get_openai()
 
-    response = client.audio.speech.create(model="tts-1", voice="alloy", input=text)
+    response = await client.audio.speech.create(
+        model="tts-1", voice="alloy", input=text
+    )
 
     buffer = BytesIO()
     for data in response.response.iter_bytes():
         buffer.write(data)
     buffer.seek(0)
-    bot.send_voice(chat_id, buffer)
+    return buffer
 
 
 async def content_submit(text: str, chat_id: str, bot_name: str, **kwargs):
-    bot = get_bot(bot_name)
-    client = get_openai()
-
-    response = client.images.create(model="clip-vit-base-patch32", prompt=text)
-
-    buffer = BytesIO()
-    for data in response.response.iter_bytes():
-        buffer.write(data)
-    buffer.seek(0)
-    bot.send_image(chat_id, buffer)
+    pass

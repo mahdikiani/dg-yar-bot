@@ -1,5 +1,7 @@
 from enum import Enum
 
+from apps.base.models import OwnedEntity
+
 
 class AIEngines(str, Enum):
     gpt4o = "gpt4o"
@@ -49,3 +51,7 @@ class AIEngines(str, Enum):
             AIEngines.claud3sonnet: 0.007,
             AIEngines.claud3haiku: 0.007,
         }[self]
+
+
+class WebpageTexts(OwnedEntity):
+    pass

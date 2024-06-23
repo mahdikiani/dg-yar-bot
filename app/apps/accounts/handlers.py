@@ -1,5 +1,4 @@
 import logging
-import os
 
 from apps.accounts.schemas import Profile, ProfileCreate
 from apps.ai.models import AIEngines
@@ -10,9 +9,7 @@ from usso.core import UserData
 
 
 async def get_usso_user(credentials: dict) -> UserData:
-    usso_api = AsyncUssoAPI(
-        url="https://sso.pixiee.io", api_key=os.getenv("USSO_API_KEY")
-    )
+    usso_api = AsyncUssoAPI(url="https://sso.pixiee.io", api_key=Settings.USSO_API_KEY)
     try:
         u = await usso_api.get_user_by_credentials(credentials)
     except Exception as e:
@@ -21,9 +18,9 @@ async def get_usso_user(credentials: dict) -> UserData:
     return u
 
 
-async def get_user_profile(user_id: str):
+async def get_user_profile(user_id: str, **kwargs):
     async with AsyncUssoSession(
-        os.getenv("USSO_REFRESH_URL"), os.getenv("PIXIEE_REFRESH_TOKEN")
+        Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
     ) as session:
         async with session.get(
             f"{Settings.profile_service_url}/profiles/{user_id}"

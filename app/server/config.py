@@ -26,6 +26,13 @@ class Settings(metaclass=Singleton):
 
     MAX_SESSION_IDLE_TIME: int = 60 * 60 * 12  # 24 hours
 
+    USSO_REFRESH_URL: str = os.getenv("USSO_REFRESH_URL")
+    PIXIEE_REFRESH_TOKEN: str = os.getenv("PIXIEE_REFRESH_TOKEN")
+    TAPSAGE_API_KEY: str = os.getenv("TAPSAGE_API_KEY")
+    USSO_API_KEY: str = os.getenv("USSO_API_KEY")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    PROXY: str = os.getenv("PROXY")
+
     testing: bool = os.getenv("TESTING", default=False)
 
     log_config = {

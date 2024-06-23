@@ -1,42 +1,24 @@
-from typing import TypeVar
+from utils import basic
 
-from core.exceptions import BaseHTTPException
-from fastapi import Request
-
-from .models import BaseEntity, OwnedEntity
-
-T = TypeVar("T", bound=BaseEntity)
-OT = TypeVar("OT", bound=OwnedEntity)
+from .models import BaseEntity, TaskMixin
+from .schemas import TaskReference
 
 
-def create_dto(cls: OT):
-    async def dto(request: Request, user=None, **kwargs):
-        form_data = await request.json()
-        if user:
-            form_data["user_id"] = user.uid
-        return cls(**form_data)
+async def get_task_item(task: TaskReference) -> BaseEntity | None:
+    task_classes = {
+        subclass.__name__: subclass
+        for subclass in basic.get_all_subclasses(TaskMixin)
+        if issubclass(subclass, BaseEntity)
+    }
 
-    return dto
+    task_class = task_classes.get(task.task_type)
+    if not task_class:
+        raise ValueError(f"Task type {task.task_type} is not supported.")
 
+    task_item = await task_class.find_one(task_class.uid == task.task_id)
+    if not task_item:
+        raise ValueError(
+            f"No task found with id {task.task_id} of type {task.task_type}."
+        )
 
-def update_dto(cls: OT):
-    async def dto(request: Request, user=None, **kwargs):
-        uid = request.path_params["uid"]
-        form_data = await request.json()
-        kwargs = {}
-        if user:
-            kwargs["user"] = user
-        item = await cls.get_item(uid, **kwargs)
-
-        if not item:
-            raise BaseHTTPException(
-                status_code=404,
-                error="item_not_found",
-                message="Item not found",
-            )
-
-        item_data = item.model_dump() | form_data
-
-        return cls(**item_data)
-
-    return dto
+    return task_item

@@ -4,7 +4,7 @@ from core.exceptions import BaseHTTPException
 from fastapi import APIRouter, BackgroundTasks, Request
 from server.config import Settings
 
-from .handlers import create_dto, update_dto
+from .dto import create_dto, update_dto
 from .models import BaseEntity, TaskBaseEntity
 
 # Define a type variable

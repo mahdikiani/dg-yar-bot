@@ -3,58 +3,27 @@ import logging
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Literal, Union
+from typing import Any, Callable, Coroutine, Literal
 
 from beanie import Document, Insert, Replace, Save, SaveChanges, Update, before_event
 from json_advanced import dumps
-from pydantic import BaseModel, Field
 from singleton import Singleton
 from utils import aionetwork, basic
 
+from .schemas import (
+    BaseEntitySchema,
+    BusinessEntitySchema,
+    BusinessOwnedEntitySchema,
+    OwnedEntitySchema,
+    TaskLogRecord,
+    TaskSchema,
+)
 
-class BaseEntity(Document):
-    uid: uuid.UUID = Field(default_factory=uuid.uuid4, index=True, unique=True)
-    created_at: datetime = Field(default_factory=datetime.now, index=True)
-    updated_at: datetime = Field(default_factory=datetime.now)
-    is_deleted: bool = False
-    metadata: dict[str, Any] | None = None
 
+class BaseEntity(BaseEntitySchema, Document):
     class Settings:
         keep_nulls = False
         validate_on_save = True
-
-    @property
-    def create_exclude_set(self) -> list[str]:
-        return ["uid", "created_at", "updated_at", "is_deleted"]
-
-    @property
-    def create_field_set(self) -> list:
-        return []
-
-    @property
-    def update_exclude_set(self) -> list:
-        return ["uid", "created_at", "updated_at"]
-
-    @property
-    def update_field_set(self) -> list:
-        return []
-
-    def model_dump_create(self):
-        assert not (self.create_exclude_set and self.create_field_set)
-        if self.create_field_set:
-            return self.model_dump(fields=self.create_field_set)
-
-        return self.model_dump(exclude=self.create_exclude_set)
-
-    def model_dump_update(self):
-        assert not (self.update_exclude_set and self.update_field_set)
-        if self.update_field_set:
-            return self.model_dump(fields=self.update_field_set)
-
-        return self.model_dump(exclude=self.update_exclude_set)
-
-    def expired(self, days: int = 3):
-        return (datetime.now() - self.updated_at).days > days
 
     @before_event([Insert, Replace, Save, SaveChanges, Update])
     async def pre_save(self):
@@ -74,24 +43,7 @@ class BaseEntity(Document):
         return items[0]
 
 
-class OwnedEntity(BaseEntity):
-    user_id: uuid.UUID
-
-    @property
-    def create_exclude_set(self) -> list[str]:
-        return ["uid", "created_at", "updated_at", "is_deleted", "user_id"]
-
-    @property
-    def update_exclude_set(self) -> list[str]:
-        return ["uid", "created_at", "updated_at", "user_id"]
-
-    def model_dump_create(self, user_id: uuid.UUID):
-        assert not (self.create_exclude_set and self.create_field_set)
-        if self.create_field_set:
-            return self.model_dump(fields=self.create_field_set) | {"user_id": user_id}
-
-        return self.model_dump(exclude=self.create_exclude_set) | {"user_id": user_id}
-
+class OwnedEntity(OwnedEntitySchema, BaseEntity):
     @classmethod
     def get_query(cls, user_id, *args, **kwargs):
         query = cls.find(cls.is_deleted == False, cls.user_id == user_id)
@@ -106,28 +58,7 @@ class OwnedEntity(BaseEntity):
         return items[0]
 
 
-class BusinessEntity(BaseEntity):
-    business_id: uuid.UUID
-
-    @property
-    def create_exclude_set(self) -> list[str]:
-        return ["uid", "created_at", "updated_at", "is_deleted", "business_id"]
-
-    @property
-    def update_exclude_set(self) -> list[str]:
-        return ["uid", "created_at", "updated_at", "business_id"]
-
-    def model_dump_create(self, business_id: uuid.UUID):
-        assert not (self.create_exclude_set and self.create_field_set)
-        if self.create_field_set:
-            return self.model_dump(fields=self.create_field_set) | {
-                "business_id": business_id
-            }
-
-        return self.model_dump(exclude=self.create_exclude_set) | {
-            "business_id": business_id
-        }
-
+class BusinessEntity(BusinessEntitySchema, BaseEntity):
     @classmethod
     def get_query(cls, business_id, *args, **kwargs):
         query = cls.find(cls.is_deleted == False, cls.business_id == business_id)
@@ -142,34 +73,7 @@ class BusinessEntity(BaseEntity):
         return items[0]
 
 
-class BusinessOwnedEntity(OwnedEntity, BusinessEntity):
-    @property
-    def create_exclude_set(self) -> list[str]:
-        return [
-            "uid",
-            "created_at",
-            "updated_at",
-            "is_deleted",
-            "user_id",
-            "business_id",
-        ]
-
-    @property
-    def update_exclude_set(self) -> list[str]:
-        return ["uid", "created_at", "updated_at", "user_id", "business_id"]
-
-    def model_dump_create(self, business_id: uuid.UUID, user_id: uuid.UUID):
-        assert not (self.create_exclude_set and self.create_field_set)
-        if self.create_field_set:
-            return self.model_dump(fields=self.create_field_set) | {
-                "user_id": user_id,
-                "business_id": business_id,
-            }
-
-        return self.model_dump(exclude=self.create_exclude_set) | {
-            "user_id": user_id,
-            "business_id": business_id,
-        }
+class BusinessOwnedEntity(BusinessOwnedEntitySchema, BaseEntity):
 
     @classmethod
     def get_query(cls, business_id, user_id, *args, **kwargs):
@@ -201,92 +105,7 @@ class SignalRegistry(metaclass=Singleton):
         ] = {}
 
 
-class StepStatus(str, Enum):
-    none = "null"
-    draft = "draft"
-    init = "init"
-    processing = "processing"
-    paused = "paused"
-    done = "done"
-    error = "error"
-
-
-class TaskLogRecord(BaseModel):
-    reported_at: datetime = Field(default_factory=datetime.now)
-    message: str
-    task_status: StepStatus
-    duration: int = 0
-    data: dict | None = None
-
-    def __eq__(self, other):
-        if isinstance(other, TaskLogRecord):
-            return (
-                self.reported_at == other.reported_at
-                and self.message == other.message
-                and self.task_status == other.task_status
-                and self.duration == other.duration
-                and self.data == other.data
-            )
-        return False
-
-    def __hash__(self):
-        return hash((self.reported_at, self.message, self.task_status, self.duration))
-
-
-class TaskReference(BaseModel):
-    task_id: uuid.UUID
-    task_type: str
-
-    def __eq__(self, other):
-        if isinstance(other, TaskReference):
-            return self.task_id == other.task_id and self.task_type == other.task_type
-        return False
-
-    def __hash__(self):
-        return hash((self.task_id, self.task_type))
-
-    async def get_task_item(self) -> BaseEntity | None:
-        task_classes = {
-            subclass.__name__: subclass
-            for subclass in basic.get_all_subclasses(TaskMixin)
-            if issubclass(subclass, BaseEntity)
-        }
-        # task_classes = self._get_all_task_classes()
-
-        task_class = task_classes.get(self.task_type)
-        if not task_class:
-            raise ValueError(f"Task type {self.task_type} is not supported.")
-
-        task_item = await task_class.find_one(task_class.uid == self.task_id)
-        if not task_item:
-            raise ValueError(
-                f"No task found with id {self.task_id} of type {self.task_type}."
-            )
-
-        return task_item
-
-
-class TaskReferenceList(BaseModel):
-    tasks: list[Union[TaskReference, "TaskReferenceList"]] = []
-    mode: Literal["serial", "parallel"] = "serial"
-
-    async def list_processing(self):
-        task_items = [task.get_task_item() for task in self.tasks]
-        match self.mode:
-            case "serial":
-                for task_item in task_items:
-                    await task_item.start_processing()
-            case "parallel":
-                await asyncio.gather(*[task.start_processing() for task in task_items])
-
-
-class TaskMixin:
-    task_status: StepStatus = StepStatus.draft
-    task_report: str | None = None
-    task_progress: int = -1
-    task_logs: list[TaskLogRecord] = []
-    task_references: TaskReferenceList | None = None
-
+class TaskMixin(TaskSchema):
     @classmethod
     def signals(cls):
         registry = SignalRegistry()
