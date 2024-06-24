@@ -1,15 +1,18 @@
+import asyncio
+
 from apps.bots import keyboards
 from apps.bots.handlers import get_bot, update_bot
 from apps.webpage.schemas import Webpage
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
+from utils.basic import try_except_wrapper
 
 router = APIRouter(prefix="/bots")
 
 
 @router.post("/webhook/{bot}")
-async def bot_update(bot: str, data: dict, background_tasks: BackgroundTasks):
-    background_tasks.add_task(update_bot, bot, data)
+async def bot_update(bot: str, data: dict):
+    asyncio.create_task(update_bot(bot, data))
 
 
 @router.post("/webpage-webhook")
@@ -27,20 +30,19 @@ async def webpage_webhook(webpage: Webpage, background_tasks: BackgroundTasks):
         markup = None
 
     if webpage.metadata.get("chat_id") and webpage.metadata.get("message_id"):
-        background_tasks.add_task(
-            bot.delete_message,
-            chat_id=webpage.metadata.get("chat_id"),
-            message_id=webpage.metadata.get("message_id"),
-        )
-        background_tasks.add_task(
-            bot.send_message,
-            text=text,
-            chat_id=webpage.metadata.get("chat_id"),
-            parse_mode="markdown",
-            reply_markup=markup,
+        asyncio.create_task(
+            try_except_wrapper(bot.edit_message_text)(
+                text=text,
+                chat_id=webpage.metadata.get("chat_id"),
+                message_id=webpage.metadata.get("message_id"),
+                parse_mode="markdown",
+                reply_markup=markup,
+            )
         )
 
-    return JSONResponse({"ok": f"Webpage webhook request processed for {webpage.uid}"})
+    return JSONResponse(
+        {"ok": f"Webpage webhook request processed for {webpage.uid}"}
+    )
 
 
 @router.post("/project-webhook")

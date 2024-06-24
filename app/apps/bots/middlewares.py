@@ -18,7 +18,9 @@ class UserMiddleware(async_telebot.BaseMiddleware):
         self.bot_type = bot.bot_type
         super().__init__(*args, **kwargs)
 
-    async def pre_process_message(self, message: async_telebot.types.Message, data):
+    async def pre_process_message(
+        self, message: async_telebot.types.Message, data
+    ):
         messenger = self.bot_type
         from_user = message.from_user if message.from_user else message.chat
         if from_user.id == (await self.bot.get_me()).id:

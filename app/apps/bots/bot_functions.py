@@ -6,6 +6,7 @@ from apps.accounts.handlers import get_user_profile, get_usso_user
 from apps.ai.models import AIEngines
 from apps.bots import Bot, functions, keyboards, models, schemas
 from telebot import async_telebot
+from utils.b64tools import b64_decode_uuid
 from utils.texttools import is_valid_url
 
 logger = logging.getLogger("bot")
@@ -70,19 +71,23 @@ async def command(message: schemas.MessageOwned, bot: Bot.BaseBot):
             )
             return await bot.reply_to(message, "New session created")
         case "show_conversation":
-            session = await functions.get_tapsage_session(profile=message.profile)
+            session = await functions.get_tapsage_session(
+                profile=message.profile
+            )
             messages_text = "\n\n".join(
                 ["Your conversation in this session:"]
                 + [f"{msg.type}: {msg.content}" for msg in session.messages]
             )
 
             return await bot.send_message(
-                chat_id=message.chat.id, text=messages_text, parse_mode="markdown"
+                chat_id=message.chat.id,
+                text=messages_text,
+                parse_mode="markdown",
             )
         case "conversations":
-            sessions = await functions.get_tapsage(message.profile).list_sessions(
-                message.user.uid
-            )
+            sessions = await functions.get_tapsage(
+                message.profile
+            ).list_sessions(message.user.uid)
             return await bot.reply_to(
                 message,
                 "\n\n".join([f"{session.id}" for session in sessions]),
@@ -171,7 +176,9 @@ async def message(message: schemas.MessageOwned, bot: Bot.BaseBot):
     return await prompt(message, bot)
 
 
-async def callback_read(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
+async def callback_read(
+    call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
+):
     message_id = uuid.UUID(call.data.split("_")[1])
     message: models.Message = await models.Message.get_item(
         uid=message_id, user_id=call.message.user.uid
@@ -180,7 +187,9 @@ async def callback_read(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBo
     await bot.send_voice(call.message.chat.id, voice)
 
 
-async def callback_answer(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
+async def callback_answer(
+    call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
+):
     message_id = uuid.UUID(call.data.split("_")[1])
     message: models.Message = await models.Message.get_item(
         uid=message_id, user_id=call.message.user.uid
@@ -190,7 +199,9 @@ async def callback_answer(call: async_telebot.types.CallbackQuery, bot: Bot.Base
     await prompt(call.message, bot)
 
 
-async def callback_select_ai(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
+async def callback_select_ai(
+    call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
+):
     user = call.message.user
     user.ai_engine = call.data.split("_")[2]
     # TODO
@@ -203,7 +214,9 @@ async def callback_select_ai(call: async_telebot.types.CallbackQuery, bot: Bot.B
     )
 
 
-async def callback_brief(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
+async def callback_brief(
+    call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
+):
     wid = call.data.split("_")[2]
     response = await bot.reply_to(call.message, "Please wait for content ...")
     await functions.content_response(
@@ -217,25 +230,33 @@ async def callback_brief(call: async_telebot.types.CallbackQuery, bot: Bot.BaseB
 async def callback_content_select(
     call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
 ):
-    tuple_string = call.data.split("_")[2]
+    webpage_response_uid, tuple_string = call.data.split("_")[-2:]
+    webpage_response_uid = b64_decode_uuid(webpage_response_uid)
     tuple_elements = tuple_string.strip("()").split(",")
     new_state = tuple(map(int, tuple_elements))
     await bot.edit_message_reply_markup(
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        reply_markup=keyboards.content_keyboard(new_state),
+        reply_markup=keyboards.content_keyboard(
+            webpage_response_uid, new_state
+        ),
     )
 
 
 async def callback_content_submit(
     call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
 ):
-    # TODO
-    tuple_string = call.data.split("_")[2]
+    webpage_response_uid, tuple_string = call.data.split("_")[-2:]
+    webpage_response_uid = b64_decode_uuid(webpage_response_uid)
     tuple_elements = tuple_string.strip("()").split(",")
-    tuple(map(int, tuple_elements))
-    # TODO
-    await functions.content_submit()
+    state = tuple(map(int, tuple_elements))
+    await functions.content_submit(
+        wrid=webpage_response_uid,
+        state=state,
+        profile=call.message.profile,
+        chat_id=call.message.chat.id,
+        bot_name=bot.me,
+    )
 
 
 async def callback(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
@@ -255,7 +276,9 @@ async def callback(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
         return await callback_content_submit(call, bot)
 
 
-async def inline_query(inline_query: async_telebot.types.InlineQuery, bot: Bot.BaseBot):
+async def inline_query(
+    inline_query: async_telebot.types.InlineQuery, bot: Bot.BaseBot
+):
     credentials = {
         "auth_method": bot.bot_type,
         "representor": f"{inline_query.from_user.id}",

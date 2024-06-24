@@ -1,3 +1,4 @@
+import logging
 import os
 
 import dotenv
@@ -45,12 +46,18 @@ class BaseBot(AsyncTeleBot):
                 or "message text is empty" in str(e)
             ):
                 raise e
+            else:
+                logging.warning(f"Error: {e}")
 
-    async def send_message(self, chat_id: int | str, text: str, *args, **kwargs):
+    async def send_message(
+        self, chat_id: int | str, text: str, *args, **kwargs
+    ):
         try:
             messages = split_text(text)
             for msg in messages:
-                sent = await super().send_message(chat_id, msg, *args, **kwargs)
+                sent = await super().send_message(
+                    chat_id, msg, *args, **kwargs
+                )
             return sent
         except ApiTelegramException as e:
             raise e
@@ -70,8 +77,8 @@ class TGTelegramBot(BaseBot, metaclass=singleton.Singleton):
     webhook_route = "pixiee-telegram-dev"
 
 
-# class BaleBot(BaseBot, metaclass=singleton.Singleton):
-#     token = os.getenv("BALE_TOKEN")
-#     bot_type = "bale"
-#     me = "pixiee_bot"
-#     webhook_route = "pixiee-bale"
+class BaleBot(BaseBot, metaclass=singleton.Singleton):
+    token = os.getenv("BALE_TOKEN")
+    bot_type = "bale"
+    me = "pixiee_bot"
+    webhook_route = "pixiee-bale"

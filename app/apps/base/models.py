@@ -5,7 +5,15 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Coroutine, Literal
 
-from beanie import Document, Insert, Replace, Save, SaveChanges, Update, before_event
+from beanie import (
+    Document,
+    Insert,
+    Replace,
+    Save,
+    SaveChanges,
+    Update,
+    before_event,
+)
 from json_advanced import dumps
 from singleton import Singleton
 from utils import aionetwork, basic
@@ -61,12 +69,18 @@ class OwnedEntity(OwnedEntitySchema, BaseEntity):
 class BusinessEntity(BusinessEntitySchema, BaseEntity):
     @classmethod
     def get_query(cls, business_id, *args, **kwargs):
-        query = cls.find(cls.is_deleted == False, cls.business_id == business_id)
+        query = cls.find(
+            cls.is_deleted == False, cls.business_id == business_id
+        )
         return query
 
     @classmethod
-    async def get_item(cls, uid, business_id, *args, **kwargs) -> "BusinessEntity":
-        query = cls.get_query(business_id, *args, **kwargs).find(cls.uid == uid)
+    async def get_item(
+        cls, uid, business_id, *args, **kwargs
+    ) -> "BusinessEntity":
+        query = cls.get_query(business_id, *args, **kwargs).find(
+            cls.uid == uid
+        )
         items = await query.to_list()
         if not items:
             return None
@@ -101,7 +115,9 @@ class SignalRegistry(metaclass=Singleton):
     def __init__(self):
         self.signal_map: dict[
             str,
-            list[Callable[..., None] | Callable[..., Coroutine[Any, Any, None]]],
+            list[
+                Callable[..., None] | Callable[..., Coroutine[Any, Any, None]]
+            ],
         ] = {}
 
 
@@ -128,7 +144,9 @@ class TaskMixin(TaskSchema):
             ) or task_instance.metadata.get("webhook_url")
             if webhook:
                 task_dict = task_instance.model_dump()
-                task_dict.update({"task_type": task_instance.__class__.__name__})
+                task_dict.update(
+                    {"task_type": task_instance.__class__.__name__}
+                )
                 task_dict.update(kwargs)
                 webhook_signals = [
                     basic.try_except_wrapper(aionetwork.aio_request)(
@@ -188,7 +206,9 @@ class TaskMixin(TaskSchema):
             **kwargs,
         )
 
-    async def add_log(self, log_record: TaskLogRecord, *, emit: bool = True, **kwargs):
+    async def add_log(
+        self, log_record: TaskLogRecord, *, emit: bool = True, **kwargs
+    ):
         self.task_logs.append(log_record)
         if emit:
             # await self.emit_signals(self)
@@ -196,7 +216,9 @@ class TaskMixin(TaskSchema):
 
     async def start_processing(self):
         if self.task_references is None:
-            raise NotImplementedError("Subclasses should implement this method")
+            raise NotImplementedError(
+                "Subclasses should implement this method"
+            )
 
         await self.task_references.list_processing()
 

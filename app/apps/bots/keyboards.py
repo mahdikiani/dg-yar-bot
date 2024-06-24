@@ -6,6 +6,7 @@ from telebot.types import (
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
+from utils import b64tools
 
 
 def main_keyboard():
@@ -35,7 +36,8 @@ def select_ai_keyboard(profile: Profile, row_width=3):
         if profile.data.ai_engine.name == engine.name:
             row.append(
                 InlineKeyboardButton(
-                    f"✅ {engine.name}", callback_data=f"select_ai_{engine.name}"
+                    f"✅ {engine.name}",
+                    callback_data=f"select_ai_{engine.name}",
                 )
             )
         else:
@@ -66,7 +68,9 @@ def read_keyboard(message_id):
 def answer_keyboard(message_id):
     markup = InlineKeyboardMarkup()
     markup.add(
-        InlineKeyboardButton("جواب دادن", callback_data=f"answer_{message_id}"),
+        InlineKeyboardButton(
+            "جواب دادن", callback_data=f"answer_{message_id}"
+        ),
     )
     return markup
 
@@ -83,38 +87,46 @@ def brief_keyboard(webpage_uid: str):
     markup = InlineKeyboardMarkup()
     markup.add(
         InlineKeyboardButton(
-            "پیشنهاد متن با هوش مصنوعی", callback_data=f"brief_textai_{webpage_uid}"
+            "پیشنهاد متن با هوش مصنوعی",
+            callback_data=f"brief_textai_{webpage_uid}",
         ),
     )
     return markup
 
 
-def content_keyboard(select_state=(0, 0, 0, 0, 0)):
+def content_keyboard(uid, select_state=(0, 0, 0, 0, 0)):
     content_titles = ["Title", "Subtitle", "Description", "CTA", "Image"]
     markup = InlineKeyboardMarkup(row_width=6)
+    uid = b64tools.b64_encode_uuid_strip(uid)
 
     for i in range(5):
         krow = [
-            InlineKeyboardButton(content_titles[i], callback_data=content_titles[i]),
+            InlineKeyboardButton(
+                content_titles[i], callback_data=content_titles[i]
+            ),
         ]
         for j in range(5):
             new_state = select_state[:i] + (j,) + select_state[i + 1 :]
+            # new_state = "_".join(map(str, new_state))
             if select_state[i] == j:
                 krow.append(
                     InlineKeyboardButton(
-                        f"✅ {j+1}", callback_data=f"content_select_{new_state}"
+                        f"✅ {j+1}",
+                        callback_data=f"content_select_{uid}_{new_state}",
                     ),
                 )
             else:
                 krow.append(
                     InlineKeyboardButton(
-                        f"{j+1}", callback_data=f"content_select_{new_state}"
+                        f"{j+1}",
+                        callback_data=f"content_select_{uid}_{new_state}",
                     ),
                 )
         markup.add(*krow)
+
     markup.add(
         InlineKeyboardButton(
-            f"Generate", callback_data=f"content_submit_{select_state}"
+            f"Generate", callback_data=f"content_submit_{uid}_{select_state}"
         )
     )
     return markup

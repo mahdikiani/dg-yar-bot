@@ -1,11 +1,12 @@
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import httpx
 import openai
 from apps.accounts.schemas import Profile
-from apps.ai.models import AIEngines
+from apps.ai.models import AIEngines, WebpageResponse
 from apps.bots import handlers, keyboards, models
 from apps.webpage.schemas import Webpage
 from server.config import Settings
@@ -20,7 +21,9 @@ logger = logging.getLogger("bot")
 def get_tapsage(profile: Profile):
     for engine in AIEngines:
         if profile.data.ai_engine.name == engine.name:
-            return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
+            return AsyncTapSageBot(
+                Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id
+            )
 
 
 def get_openai() -> openai.AsyncOpenAI:
@@ -74,7 +77,7 @@ async def get_tapsage_session(
 
         return session
     except Exception as e:
-        logging.error(e)
+        logger.error(e)
         return
 
 
@@ -90,8 +93,12 @@ async def ai_response(
 ):
     bot = handlers.get_bot(bot_name)
     tapsage = get_tapsage(profile)
-    session = await get_tapsage_session(profile=profile, tapsage=tapsage, **kwargs)
-    stream = tapsage.stream_messages(session, message, split_criteria={"words": True})
+    session = await get_tapsage_session(
+        profile=profile, tapsage=tapsage, **kwargs
+    )
+    stream = tapsage.stream_messages(
+        session, message, split_criteria={"words": True}
+    )
 
     resp_text = ""
     new_piece = ""
@@ -101,6 +108,7 @@ async def ai_response(
             resp_text += new_piece
             if resp_text.count("`") % 2 == 0:
                 try:
+                    # logger.info(f"Response: {len(resp_text)}")
                     await bot.edit_message_text(
                         text=resp_text,
                         chat_id=chat_id,
@@ -120,7 +128,7 @@ async def ai_response(
 
     if resp_text:
         try:
-            # logging.warning(f"Final response: {len(resp_text)}")
+            # logger.warning(f"Final response: {len(resp_text)}")
             messages = split_text(resp_text)
             if inline_message_id is None:
                 for i, msg in enumerate(messages):
@@ -223,23 +231,22 @@ async def content_response(
         data = webpage.ai_data.model_dump()
         data["brief"] = str(webpage.ai_data.brief)
 
-        async with session.post(f"https://api.pixiee.io/ai/{key}", json=data) as r:
+        async with session.post(
+            f"https://api.pixiee.io/ai/{key}", json=data
+        ) as r:
             r.raise_for_status()
             response: dict[str, list] = await r.json()
 
-    text = ""
-    for k, v in response.items():
-        text += f"*{k.capitalize()}*:\n"
-        for i, msg in enumerate(v):
-            text += f"{i+1}. `{msg}`\n"
-        text += "\n"
+    webpage_response = WebpageResponse(**response)
+    await webpage_response.save()
 
     await bot.send_message(
-        text=text,
+        text=str(webpage_response),
         chat_id=chat_id,
         parse_mode="markdown",
-        reply_markup=keyboards.content_keyboard(),
+        reply_markup=keyboards.content_keyboard(webpage_response.uid),
     )
+
     await bot.delete_message(chat_id, response_id)
 
 
@@ -265,5 +272,15 @@ async def tts_response(text: str, **kwargs):
     return buffer
 
 
-async def content_submit(text: str, chat_id: str, bot_name: str, **kwargs):
-    pass
+async def content_submit(
+    wrid: uuid.UUID,
+    chat_id: str,
+    bot_name: str,
+    profile: Profile,
+    state: tuple[int, int, int, int, int],
+    **kwargs,
+):
+    handlers.get_bot(bot_name)
+    webpage_response: WebpageResponse = await WebpageResponse.get_item(wrid)
+
+    logger.info(f"Content submit: {webpage_response.get_state(state)}")

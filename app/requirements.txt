@@ -17,5 +17,5 @@ redis
 
 usso>=0.23.1
 telegram-bale-bot>=4.19.4
-tapsage-client>=0.6.1
+tapsage-client>=0.8.1
 openai

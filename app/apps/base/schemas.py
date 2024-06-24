@@ -62,9 +62,13 @@ class OwnedEntitySchema(BaseEntitySchema):
     def model_dump_create(self, user_id: uuid.UUID):
         assert not (self.create_exclude_set and self.create_field_set)
         if self.create_field_set:
-            return self.model_dump(fields=self.create_field_set) | {"user_id": user_id}
+            return self.model_dump(fields=self.create_field_set) | {
+                "user_id": user_id
+            }
 
-        return self.model_dump(exclude=self.create_exclude_set) | {"user_id": user_id}
+        return self.model_dump(exclude=self.create_exclude_set) | {
+            "user_id": user_id
+        }
 
 
 class BusinessEntitySchema(BaseEntitySchema):
@@ -159,7 +163,9 @@ class TaskLogRecord(BaseModel):
         return False
 
     def __hash__(self):
-        return hash((self.reported_at, self.message, self.task_status, self.duration))
+        return hash(
+            (self.reported_at, self.message, self.task_status, self.duration)
+        )
 
 
 class TaskReference(BaseModel):
@@ -168,7 +174,10 @@ class TaskReference(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, TaskReference):
-            return self.task_id == other.task_id and self.task_type == other.task_type
+            return (
+                self.task_id == other.task_id
+                and self.task_type == other.task_type
+            )
         return False
 
     def __hash__(self):
@@ -186,7 +195,9 @@ class TaskReferenceList(BaseModel):
                 for task_item in task_items:
                     await task_item.start_processing()
             case "parallel":
-                await asyncio.gather(*[task.start_processing() for task in task_items])
+                await asyncio.gather(
+                    *[task.start_processing() for task in task_items]
+                )
 
 
 class TaskSchema(BaseModel):

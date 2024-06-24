@@ -9,6 +9,9 @@ class ProductInfo(BaseModel):
     name: str
     description: str
 
+    def __str__(self) -> str:
+        return f"{self.name}: {self.description}"
+
 
 class Brief(BaseModel):
     description: str | None = None
@@ -51,7 +54,9 @@ class SourceAIData(BaseModel):
     colors: list[str] | None = None
     fonts: list[str] | None = None
     audience: str | None = None
-    tone: Literal["friendly", "professional", "informal", "enthusiastic"] | None = None
+    tone: (
+        Literal["friendly", "professional", "informal", "enthusiastic"] | None
+    ) = None
     products: list[ProductInfo] | None = None
     product_index: int | None = None
 

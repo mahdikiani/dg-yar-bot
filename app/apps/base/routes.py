@@ -154,7 +154,9 @@ class AbstractTaskRouter(AbstractBaseRouter[TE]):
             response_model=self.model,
         )
 
-    async def start(self, request: Request, uid, background_tasks: BackgroundTasks):
+    async def start(
+        self, request: Request, uid, background_tasks: BackgroundTasks
+    ):
         user = await self.get_user(request)
         item = await self.model.get_item(uid, user)
         if item is None:

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from apps.base.models import OwnedEntity
+from apps.base.models import BaseEntity
 
 
 class AIEngines(str, Enum):
@@ -53,5 +53,30 @@ class AIEngines(str, Enum):
         }[self]
 
 
-class WebpageTexts(OwnedEntity):
-    pass
+class WebpageResponse(BaseEntity):
+    title: list[str]
+    subtitle: list[str]
+    caption: list[str]
+    cta: list[str]
+    image_prompt: list[str]
+
+    def __str__(self):
+        text = ""
+        for k, v in self.model_dump().items():
+            if not isinstance(v, list):
+                continue
+            text += f"*{k.capitalize()}*:\n"
+            for i, msg in enumerate(v):
+                text += f"{i+1}. `{msg}`\n"
+            text += "\n"
+        return text
+
+    def get_state(self, state: tuple[int, int, int, int, int]):
+        i = 0
+        res = {}
+        for k, v in self.model_dump().items():
+            if not isinstance(v, list):
+                continue
+            res[k] = v[state[i]]
+            i += 1
+        return res
