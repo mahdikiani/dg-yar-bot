@@ -6,16 +6,13 @@ import aiofiles
 import aiohttp
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
+
 from core import exceptions
 
 
-async def aio_request(
-    *, method: str = "get", url: str = None, **kwargs
-) -> dict:
+async def aio_request(*, method: str = "get", url: str = None, **kwargs) -> dict:
     async with aiohttp.ClientSession() as session:
-        return await aio_request_session(
-            session, method=method, url=url, **kwargs
-        )
+        return await aio_request_session(session, method=method, url=url, **kwargs)
 
 
 async def aio_request_session(
@@ -112,9 +109,7 @@ async def get_config_from_panel(key, raise_exception=True) -> list[str]:
     if len(data) == 1:
         return data[0]
     if raise_exception:
-        raise exceptions.BaseHTTPException(
-            status_code=404, error="key_not_found"
-        )
+        raise exceptions.BaseHTTPException(status_code=404, error="key_not_found")
 
 
 @cached(ttl=24 * 3600, serializer=PickleSerializer())
@@ -130,9 +125,7 @@ async def list_config_from_panel(raise_exception=True) -> list[str]:
 
 @cached(ttl=24 * 3600, serializer=PickleSerializer())
 async def get_message_from_panel(key, raise_exception=True) -> list[str]:
-    url = (
-        f"https://message.bot.inbeet.tech/api/messages?filters[key][$eq]={key}"
-    )
+    url = f"https://message.bot.inbeet.tech/api/messages?filters[key][$eq]={key}"
     headers = {
         "Authorization": "Bearer " + os.getenv("STRAPI_TOKEN"),
     }
@@ -141,24 +134,21 @@ async def get_message_from_panel(key, raise_exception=True) -> list[str]:
     if len(data) == 1:
         return data[0].get("attributes", {}).get("body", {})
     if raise_exception:
-        raise exceptions.BaseHTTPException(
-            status_code=404, error="key_not_found"
-        )
+        raise exceptions.BaseHTTPException(status_code=404, error="key_not_found")
 
 
 @cached(ttl=24 * 3600, serializer=PickleSerializer())
 async def get_messages_list(key, raise_exception=True) -> list[str]:
-    url = f"https://message.bot.inbeet.tech/api/messages?filters[key][$startsWith]={key}"
+    url = (
+        f"https://message.bot.inbeet.tech/api/messages?filters[key][$startsWith]={key}"
+    )
     headers = {
         "Authorization": "Bearer " + os.getenv("STRAPI_TOKEN"),
     }
     res = await aio_request(url=url, headers=headers)
     data: list[dict] = res.get("data", [])
     return {
-        "_".join(d.get("attributes", {}).get("key", {}).split("_")[1:-1])
-        for d in data
+        "_".join(d.get("attributes", {}).get("key", {}).split("_")[1:-1]) for d in data
     }
     if raise_exception:
-        raise exceptions.BaseHTTPException(
-            status_code=404, error="key_not_found"
-        )
+        raise exceptions.BaseHTTPException(status_code=404, error="key_not_found")

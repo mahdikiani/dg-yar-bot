@@ -1,7 +1,8 @@
 from typing import Any, Generic, Type, TypeVar
 
-from core.exceptions import BaseHTTPException
 from fastapi import APIRouter, BackgroundTasks, Request
+
+from core.exceptions import BaseHTTPException
 from server.config import Settings
 
 from .dto import create_dto, update_dto
@@ -154,9 +155,7 @@ class AbstractTaskRouter(AbstractBaseRouter[TE]):
             response_model=self.model,
         )
 
-    async def start(
-        self, request: Request, uid, background_tasks: BackgroundTasks
-    ):
+    async def start(self, request: Request, uid, background_tasks: BackgroundTasks):
         user = await self.get_user(request)
         item = await self.model.get_item(uid, user)
         if item is None:

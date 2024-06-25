@@ -15,7 +15,5 @@ async def channel_listener(entity_class: Type[T]):
     await pubsub.subscribe(channel_name)
     async for message in pubsub.listen():
         if message["type"] == "message":
-            entity = entity_class(
-                **json.loads(message["data"].decode("utf-8"))
-            )
+            entity = entity_class(**json.loads(message["data"].decode("utf-8")))
             await entity.save_and_emit()

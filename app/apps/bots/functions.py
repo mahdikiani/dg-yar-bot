@@ -5,14 +5,17 @@ from io import BytesIO
 
 import httpx
 import openai
-from apps.accounts.schemas import Profile
-from apps.ai.models import AIEngines, WebpageResponse
-from apps.bots import handlers, keyboards, models
-from apps.webpage.schemas import Webpage
-from server.config import Settings
 from tapsage.async_tapsage import AsyncTapSageBot
 from tapsage.taptypes import Session
 from usso.async_session import AsyncUssoSession
+
+from apps.accounts.schemas import Profile
+from apps.ai.models import AIEngines, WebpageResponse
+from apps.base.schemas import StepStatus
+from apps.bots import handlers, keyboards, models
+from apps.project.schemas import Project, ProjectStatus
+from apps.webpage.schemas import Webpage
+from server.config import Settings
 from utils.texttools import split_text
 
 logger = logging.getLogger("bot")
@@ -21,9 +24,7 @@ logger = logging.getLogger("bot")
 def get_tapsage(profile: Profile):
     for engine in AIEngines:
         if profile.data.ai_engine.name == engine.name:
-            return AsyncTapSageBot(
-                Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id
-            )
+            return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
 
 
 def get_openai() -> openai.AsyncOpenAI:
@@ -93,12 +94,8 @@ async def ai_response(
 ):
     bot = handlers.get_bot(bot_name)
     tapsage = get_tapsage(profile)
-    session = await get_tapsage_session(
-        profile=profile, tapsage=tapsage, **kwargs
-    )
-    stream = tapsage.stream_messages(
-        session, message, split_criteria={"words": True}
-    )
+    session = await get_tapsage_session(profile=profile, tapsage=tapsage, **kwargs)
+    stream = tapsage.stream_messages(session, message, split_criteria={"words": True})
 
     resp_text = ""
     new_piece = ""
@@ -231,13 +228,13 @@ async def content_response(
         data = webpage.ai_data.model_dump()
         data["brief"] = str(webpage.ai_data.brief)
 
-        async with session.post(
-            f"https://api.pixiee.io/ai/{key}", json=data
-        ) as r:
+        async with session.post(f"https://api.pixiee.io/ai/{key}", json=data) as r:
             r.raise_for_status()
             response: dict[str, list] = await r.json()
 
-    webpage_response = WebpageResponse(**response)
+    webpage_response = WebpageResponse(
+        **response, url=webpage.url, webpage_id=webpage.uid
+    )
     await webpage_response.save()
 
     await bot.send_message(
@@ -278,9 +275,44 @@ async def content_submit(
     bot_name: str,
     profile: Profile,
     state: tuple[int, int, int, int, int],
+    response_id: str,
     **kwargs,
 ):
+    from apps.bots.routes import get_reverse_url
+
+    reverse_url = get_reverse_url("project_webhook")
+    webhook_url = f"https://{Settings.root_url}{reverse_url}"
+
     handlers.get_bot(bot_name)
     webpage_response: WebpageResponse = await WebpageResponse.get_item(wrid)
+    project = Project(
+        user_id=profile.user_id,
+        url=webpage_response.url,
+        mode="auto",
+        project_step="image",
+        project_status=ProjectStatus(
+            brief=StepStatus.done, content=StepStatus.processing, render=StepStatus.none
+        ),
+        related_objects=[{"id": webpage_response.webpage_id, "object_type": "webpage"}],
+        data=webpage_response.get_project_data(state),
+        metadata={
+            "webhook": webhook_url,
+            "user_id": str(profile.user_id),
+            "chat_id": chat_id,
+            "message_id": response_id,
+            "bot_name": bot_name,
+        },
+    )
+    async with AsyncUssoSession(
+        Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
+    ) as session:
+        async with session.post(Project.create_url(), json=project.model_dump()) as r:
+            r.raise_for_status()
+            project = Project(**await r.json())
 
-    logger.info(f"Content submit: {webpage_response.get_state(state)}")
+        async with session.post(
+            f"https://api.pixiee.io/projects/{project.uid}/start"
+        ) as r_start:
+            r_start.raise_for_status()
+
+    logger.info(f"Content submit: {project}")

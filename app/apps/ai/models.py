@@ -1,6 +1,8 @@
+import uuid
 from enum import Enum
 
 from apps.base.models import BaseEntity
+from apps.project.schemas import ProjectData
 
 
 class AIEngines(str, Enum):
@@ -59,6 +61,8 @@ class WebpageResponse(BaseEntity):
     caption: list[str]
     cta: list[str]
     image_prompt: list[str]
+    url: str | None = None
+    webpage_id: uuid.UUID
 
     def __str__(self):
         text = ""
@@ -80,3 +84,10 @@ class WebpageResponse(BaseEntity):
             res[k] = v[state[i]]
             i += 1
         return res
+
+    def get_project_data(self, state):
+        return ProjectData(
+            texts=[self.title[state[0]], self.subtitle[state[1]]],
+            caption=self.caption[state[2]],
+            cta=self.cta[state[3]],
+        )

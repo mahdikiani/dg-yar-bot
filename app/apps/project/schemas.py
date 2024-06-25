@@ -1,11 +1,12 @@
 import uuid
 from typing import Literal
 
+from pydantic import BaseModel
+
 from apps.base.models import Language
 from apps.base.schemas import OwnedEntitySchema, StepStatus, TaskSchema
 from apps.renders.schemas import ContentAIData
 from apps.webpage.schemas import SourceAIData
-from pydantic import BaseModel
 
 
 class ProjectData(SourceAIData, ContentAIData):
@@ -35,10 +36,12 @@ class Project(TaskSchema, OwnedEntitySchema):
     language: Language = Language.Persian
     brand_id: uuid.UUID | None = None
     # project_status: ProjectState = ProjectState.source_archive_draft
-    project_step: Literal["source", "brief", "content", "image", "render"] = (
-        "source"
-    )
+    project_step: Literal["source", "brief", "content", "image", "render"] = "source"
     project_status: ProjectStatus = ProjectStatus()
     related_objects: list[Relation] | None = None
 
     data: ProjectData | None = None
+
+    @classmethod
+    def create_url(cls):
+        return "https://api.pixiee.io/projects/"

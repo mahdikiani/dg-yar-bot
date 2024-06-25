@@ -1,8 +1,9 @@
 from typing import Literal
 
+from pydantic import BaseModel
+
 from apps.base.models import Language, TaskMixin
 from apps.base.schemas import BaseEntitySchema
-from pydantic import BaseModel
 
 
 class ProductInfo(BaseModel):
@@ -54,9 +55,7 @@ class SourceAIData(BaseModel):
     colors: list[str] | None = None
     fonts: list[str] | None = None
     audience: str | None = None
-    tone: (
-        Literal["friendly", "professional", "informal", "enthusiastic"] | None
-    ) = None
+    tone: Literal["friendly", "professional", "informal", "enthusiastic"] | None = None
     products: list[ProductInfo] | None = None
     product_index: int | None = None
 

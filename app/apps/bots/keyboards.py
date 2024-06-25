@@ -1,11 +1,12 @@
-from apps.accounts.schemas import Profile
-from apps.ai.models import AIEngines
 from telebot.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
+
+from apps.accounts.schemas import Profile
+from apps.ai.models import AIEngines
 from utils import b64tools
 
 
@@ -68,9 +69,7 @@ def read_keyboard(message_id):
 def answer_keyboard(message_id):
     markup = InlineKeyboardMarkup()
     markup.add(
-        InlineKeyboardButton(
-            "جواب دادن", callback_data=f"answer_{message_id}"
-        ),
+        InlineKeyboardButton("جواب دادن", callback_data=f"answer_{message_id}"),
     )
     return markup
 
@@ -79,6 +78,19 @@ def inline_keyboard():
     markup = InlineKeyboardMarkup()
     markup.add(
         InlineKeyboardButton("رفتن به بات", url=f"https://t.me/tgyt_bot"),
+    )
+    return markup
+
+
+def url_keyboard(url):
+    markup = InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        InlineKeyboardButton("معرفی برند", callback_data=f"url_brief_{url}"),
+        InlineKeyboardButton("رپورتاژ", callback_data=f"url_reportage_{url}"),
+    )
+    markup.add(
+        InlineKeyboardButton("ترجمه", callback_data=f"url_translate_{url}"),
+        InlineKeyboardButton("خلاصه", callback_data=f"url_abstract_{url}"),
     )
     return markup
 
@@ -101,9 +113,7 @@ def content_keyboard(uid, select_state=(0, 0, 0, 0, 0)):
 
     for i in range(5):
         krow = [
-            InlineKeyboardButton(
-                content_titles[i], callback_data=content_titles[i]
-            ),
+            InlineKeyboardButton(content_titles[i], callback_data=content_titles[i]),
         ]
         for j in range(5):
             new_state = select_state[:i] + (j,) + select_state[i + 1 :]

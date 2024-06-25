@@ -5,6 +5,7 @@ import dotenv
 import singleton
 from telebot.async_telebot import AsyncTeleBot
 from telebot.asyncio_helper import ApiTelegramException
+
 from utils.texttools import split_text
 
 dotenv.load_dotenv()
@@ -12,9 +13,13 @@ dotenv.load_dotenv()
 
 class BaseBot(AsyncTeleBot):
     token = ""
-    bot_type = "telegram"
+    # bot_type = "telegram"
     me = ""
     webhook_route = ""
+
+    @property
+    def bot_type(self):
+        return "bale" if len(self.token) == 51 else "telegram"
 
     @property
     def link(self):
@@ -49,15 +54,11 @@ class BaseBot(AsyncTeleBot):
             else:
                 logging.warning(f"Error: {e}")
 
-    async def send_message(
-        self, chat_id: int | str, text: str, *args, **kwargs
-    ):
+    async def send_message(self, chat_id: int | str, text: str, *args, **kwargs):
         try:
             messages = split_text(text)
             for msg in messages:
-                sent = await super().send_message(
-                    chat_id, msg, *args, **kwargs
-                )
+                sent = await super().send_message(chat_id, msg, *args, **kwargs)
             return sent
         except ApiTelegramException as e:
             raise e
@@ -65,20 +66,20 @@ class BaseBot(AsyncTeleBot):
 
 class PixieeTelegramBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("TELEGRAM_TOKEN")
-    bot_type = "telegram"
+    # bot_type = "telegram"
     me = "pixiee_ai_bot"  # todo change the name
     webhook_route = "pixiee-telegram"
 
 
 class TGTelegramBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("TELEGRAM_TOKEN_dev")
-    bot_type = "telegram"
+    # bot_type = "telegram"
     me = "tgyt_bot"  # todo change the name
     webhook_route = "pixiee-telegram-dev"
 
 
 class BaleBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("BALE_TOKEN")
-    bot_type = "bale"
+    # bot_type = "bale"
     me = "pixiee_bot"
     webhook_route = "pixiee-bale"

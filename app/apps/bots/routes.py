@@ -1,10 +1,13 @@
 import asyncio
+import logging
+
+from fastapi import APIRouter, BackgroundTasks
+from fastapi.responses import JSONResponse
 
 from apps.bots import keyboards
 from apps.bots.handlers import get_bot, update_bot
+from apps.project.schemas import Project
 from apps.webpage.schemas import Webpage
-from fastapi import APIRouter, BackgroundTasks
-from fastapi.responses import JSONResponse
 from utils.basic import try_except_wrapper
 
 router = APIRouter(prefix="/bots")
@@ -40,14 +43,19 @@ async def webpage_webhook(webpage: Webpage, background_tasks: BackgroundTasks):
             )
         )
 
-    return JSONResponse(
-        {"ok": f"Webpage webhook request processed for {webpage.uid}"}
-    )
+    return JSONResponse({"ok": f"Webpage webhook request processed for {webpage.uid}"})
 
 
 @router.post("/project-webhook")
-async def project_webhook(data: dict, background_tasks: BackgroundTasks):
-    pass
+async def project_webhook(data: dict):
+    project = Project(**data)
+    bot = get_bot(project.metadata.get("bot_name"))
+    await bot.send_message(
+        chat_id=project.metadata.get("chat_id"),
+        text=str(project),
+    )
+
+    logging.info(project)
 
 
 def get_reverse_url(name: str, **kwargs) -> str:
