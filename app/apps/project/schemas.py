@@ -1,12 +1,12 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel
-
 from apps.base.models import Language
 from apps.base.schemas import OwnedEntitySchema, StepStatus, TaskSchema
 from apps.renders.schemas import ContentAIData
 from apps.webpage.schemas import SourceAIData
+from pydantic import BaseModel
+from server.config import Settings
 
 
 class ProjectData(SourceAIData, ContentAIData):
@@ -20,7 +20,7 @@ class ProjectStatus(BaseModel):
     # source: StepStatus = StepStatus.none
     brief: StepStatus = StepStatus.none
     content: StepStatus = StepStatus.none
-    # image: StepStatus = StepStatus.none
+    image: StepStatus = StepStatus.none
     # bg_removal: StepStatus = StepStatus.none
     render: StepStatus = StepStatus.none
 
@@ -45,3 +45,18 @@ class Project(TaskSchema, OwnedEntitySchema):
     @classmethod
     def create_url(cls):
         return "https://api.pixiee.io/projects/"
+
+
+class ProjectDetails(Project):
+    results: list | None = None
+
+    @classmethod
+    async def get_item(cls, uid):
+        from usso.async_session import AsyncUssoSession
+
+        async with AsyncUssoSession(
+            Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
+        ) as session:
+            async with session.get(f"{cls.create_url()}{uid}") as response:
+                data = await response.json()
+                return cls(**data)

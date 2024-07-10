@@ -1,12 +1,11 @@
+from apps.accounts.schemas import Profile
+from apps.ai.models import AIEngines
 from telebot.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
-
-from apps.accounts.schemas import Profile
-from apps.ai.models import AIEngines
 from utils import b64tools
 
 
@@ -122,21 +121,21 @@ def content_keyboard(uid, select_state=(0, 0, 0, 0, 0)):
                 krow.append(
                     InlineKeyboardButton(
                         f"✅ {j+1}",
-                        callback_data=f"content_select_{uid}_{new_state}",
+                        callback_data=f"content:select:{uid}:{new_state}",
                     ),
                 )
             else:
                 krow.append(
                     InlineKeyboardButton(
                         f"{j+1}",
-                        callback_data=f"content_select_{uid}_{new_state}",
+                        callback_data=f"content:select:{uid}:{new_state}",
                     ),
                 )
         markup.add(*krow)
 
     markup.add(
         InlineKeyboardButton(
-            f"Generate", callback_data=f"content_submit_{uid}_{select_state}"
+            f"Generate", callback_data=f"content:submit:{uid}:{select_state}"
         )
     )
     return markup

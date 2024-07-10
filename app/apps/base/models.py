@@ -3,12 +3,11 @@ import logging
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Literal
+from typing import Any, Callable, Coroutine, Literal, Self
 
 from beanie import Document, Insert, Replace, Save, SaveChanges, Update, before_event
 from json_advanced import dumps
 from singleton import Singleton
-
 from utils import aionetwork, basic
 
 from .schemas import (
@@ -36,7 +35,7 @@ class BaseEntity(BaseEntitySchema, Document):
         return query
 
     @classmethod
-    async def get_item(cls, uid, *args, **kwargs) -> "BaseEntity":
+    async def get_item(cls, uid, *args, **kwargs) -> Self:
         query = cls.get_query(*args, **kwargs).find(cls.uid == uid)
         items = await query.to_list()
         if not items:
@@ -51,7 +50,7 @@ class OwnedEntity(OwnedEntitySchema, BaseEntity):
         return query
 
     @classmethod
-    async def get_item(cls, uid, user_id, *args, **kwargs) -> "OwnedEntity":
+    async def get_item(cls, uid, user_id, *args, **kwargs) -> Self:
         query = cls.get_query(user_id, *args, **kwargs).find(cls.uid == uid)
         items = await query.to_list()
         if not items:
@@ -66,7 +65,7 @@ class BusinessEntity(BusinessEntitySchema, BaseEntity):
         return query
 
     @classmethod
-    async def get_item(cls, uid, business_id, *args, **kwargs) -> "BusinessEntity":
+    async def get_item(cls, uid, business_id, *args, **kwargs) -> Self:
         query = cls.get_query(business_id, *args, **kwargs).find(cls.uid == uid)
         items = await query.to_list()
         if not items:
@@ -86,9 +85,7 @@ class BusinessOwnedEntity(BusinessOwnedEntitySchema, BaseEntity):
         return query
 
     @classmethod
-    async def get_item(
-        cls, uid, business_id, user_id, *args, **kwargs
-    ) -> "BusinessEntity":
+    async def get_item(cls, uid, business_id, user_id, *args, **kwargs) -> Self:
         query = cls.get_query(business_id, user_id, *args, **kwargs).find(
             cls.uid == uid
         )

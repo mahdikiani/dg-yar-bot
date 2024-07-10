@@ -2,11 +2,10 @@ import logging
 import uuid
 from io import BytesIO
 
-from telebot import async_telebot
-
 from apps.accounts.handlers import get_user_profile, get_usso_user
 from apps.ai.models import AIEngines
 from apps.bots import Bot, functions, keyboards, models, schemas
+from telebot import async_telebot
 from utils.b64tools import b64_decode_uuid
 from utils.texttools import is_valid_url
 
@@ -146,9 +145,7 @@ async def voice(message: schemas.MessageOwned, bot: Bot.BaseBot):
 
 
 async def url_response(message: schemas.MessageOwned, bot: Bot.BaseBot):
-    response = await bot.reply_to(
-        message, "Please wait url ...", reply_markup=keyboards.url_keyboard()
-    )
+    response = await bot.reply_to(message, "Please wait url ...", reply_markup=None)
     try:
         await functions.url_response(
             url=message.text,
@@ -197,15 +194,15 @@ async def callback_answer(call: async_telebot.types.CallbackQuery, bot: Bot.Base
 
 
 async def callback_select_ai(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
-    user = call.message.user
-    user.ai_engine = call.data.split("_")[2]
+    profile = call.message.profile
+    profile.ai_engine = call.data.split("_")[2]
     # TODO
-    user.save()
+    profile.save()
     await bot.edit_message_text(
         text="AI Engine selected",
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
-        reply_markup=keyboards.select_ai_keyboard(user),
+        reply_markup=keyboards.select_ai_keyboard(profile),
     )
 
 
@@ -214,6 +211,7 @@ async def callback_brief(call: async_telebot.types.CallbackQuery, bot: Bot.BaseB
     response = await bot.reply_to(call.message, "Please wait for content ...")
     await functions.content_response(
         wid=wid,
+        profile=call.message.profile,
         chat_id=call.message.chat.id,
         response_id=response.id,
         bot_name=bot.me,
@@ -223,7 +221,7 @@ async def callback_brief(call: async_telebot.types.CallbackQuery, bot: Bot.BaseB
 async def callback_content_select(
     call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
 ):
-    webpage_response_uid, tuple_string = call.data.split("_")[-2:]
+    webpage_response_uid, tuple_string = call.data.split(":")[-2:]
     webpage_response_uid = b64_decode_uuid(webpage_response_uid)
     tuple_elements = tuple_string.strip("()").split(",")
     new_state = tuple(map(int, tuple_elements))
@@ -237,7 +235,9 @@ async def callback_content_select(
 async def callback_content_submit(
     call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot
 ):
-    webpage_response_uid, tuple_string = call.data.split("_")[-2:]
+    response = await bot.reply_to(call.message, "Please wait for rendering ...")
+
+    webpage_response_uid, tuple_string = call.data.split(":")[-2:]
     webpage_response_uid = b64_decode_uuid(webpage_response_uid)
     tuple_elements = tuple_string.strip("()").split(",")
     state = tuple(map(int, tuple_elements))
@@ -247,7 +247,7 @@ async def callback_content_submit(
         profile=call.message.profile,
         chat_id=call.message.chat.id,
         bot_name=bot.me,
-        response_id=call.message.message_id,
+        response_id=response.id,
     )
 
 
@@ -263,9 +263,9 @@ async def callback(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
         return await callback_select_ai(call, bot)
     elif call.data.startswith("brief_textai_"):
         return await callback_brief(call, bot)
-    elif call.data.startswith("content_select_"):
+    elif call.data.startswith("content:select:"):
         return await callback_content_select(call, bot)
-    elif call.data.startswith("content_submit_"):
+    elif call.data.startswith("content:submit:"):
         return await callback_content_submit(call, bot)
 
 

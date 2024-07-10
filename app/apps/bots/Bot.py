@@ -5,7 +5,6 @@ import dotenv
 import singleton
 from telebot.async_telebot import AsyncTeleBot
 from telebot.asyncio_helper import ApiTelegramException
-
 from utils.texttools import split_text
 
 dotenv.load_dotenv()

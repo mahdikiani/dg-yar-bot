@@ -1,9 +1,8 @@
 from typing import Literal
 
-from pydantic import BaseModel
-
 from apps.base.models import Language, TaskMixin
 from apps.base.schemas import BaseEntitySchema
+from pydantic import BaseModel
 
 
 class ProductInfo(BaseModel):

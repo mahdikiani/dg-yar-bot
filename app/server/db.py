@@ -1,9 +1,8 @@
+from apps.base.models import BaseEntity
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 from redis import Redis as RedisSync
 from redis.asyncio.client import Redis
-
-from apps.base.models import BaseEntity
 from utils.basic import get_all_subclasses
 
 from .config import Settings

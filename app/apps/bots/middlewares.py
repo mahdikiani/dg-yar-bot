@@ -1,9 +1,8 @@
-from telebot import async_telebot
-from usso.core import UserData
-
 from apps.accounts.handlers import get_user_profile, get_usso_user
 from apps.accounts.schemas import Profile
 from apps.bots import Bot, schemas
+from telebot import async_telebot
+from usso.core import UserData
 
 
 class UserMiddleware(async_telebot.BaseMiddleware):

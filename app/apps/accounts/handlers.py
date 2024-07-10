@@ -1,12 +1,11 @@
 import logging
 
-from usso.async_api import AsyncUssoAPI
-from usso.async_session import AsyncUssoSession
-from usso.core import UserData
-
 from apps.accounts.schemas import Profile, ProfileCreate
 from apps.ai.models import AIEngines
 from server.config import Settings
+from usso.async_api import AsyncUssoAPI
+from usso.async_session import AsyncUssoSession
+from usso.core import UserData
 
 
 async def get_usso_user(credentials: dict) -> UserData:

@@ -1,9 +1,8 @@
 import uuid
 from typing import Any, Literal
 
-from pydantic import BaseModel
-
 from apps.base.schemas import OwnedEntitySchema, TaskSchema
+from pydantic import BaseModel
 
 
 class ContentAIData(BaseModel):
