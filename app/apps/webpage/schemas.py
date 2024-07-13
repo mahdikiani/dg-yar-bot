@@ -49,7 +49,7 @@ class Brief(BaseModel):
 
 class SourceAIData(BaseModel):
     brand_name: str | None = None
-    brief: Brief | None = None
+    brief: Brief | str | None = None
     favicon: str | None = None
     colors: list[str] | None = None
     fonts: list[str] | None = None
