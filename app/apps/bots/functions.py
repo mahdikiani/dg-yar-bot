@@ -102,7 +102,7 @@ async def ai_response(
     new_piece = ""
     async for msg in stream:
         new_piece += msg.message.content
-        if new_piece[-1] == " " or len(new_piece) > 100:
+        if new_piece[-1] == " " or len(new_piece) > Settings.MESSAGE_LENGTH:
             resp_text += new_piece
             if resp_text.count("`") % 2 == 0:
                 try:

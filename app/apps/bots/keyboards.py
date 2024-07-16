@@ -30,6 +30,7 @@ def main_keyboard():
 
 
 def select_ai_keyboard(profile: Profile, row_width=3):
+    return
     markup = InlineKeyboardMarkup(row_width=row_width)
     row = []
     for engine in AIEngines:

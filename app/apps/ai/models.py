@@ -56,11 +56,11 @@ class AIEngines(str, Enum):
 
 
 class WebpageResponse(BaseEntity):
-    title: list[str]
-    subtitle: list[str]
-    caption: list[str] | None = None
-    cta: list[str]
-    image_prompt: list[str]
+    titles: list[str]
+    subtitles: list[str]
+    captions: list[str] | None = None
+    ctas: list[str]
+    image_prompts: list[str]
     url: str | None = None
     webpage_id: uuid.UUID
     ai_id: uuid.UUID

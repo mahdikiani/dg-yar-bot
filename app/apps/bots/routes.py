@@ -71,9 +71,7 @@ async def ai_webpage_response(ai_request: AIRequest):
             )
         )
 
-    return JSONResponse(
-        {"ok": f"AI webhook request processed for {ai_request.uid}"}
-    )
+    return JSONResponse({"ok": f"AI webhook request processed for {ai_request.uid}"})
 
 
 @router.post("/project-webhook")

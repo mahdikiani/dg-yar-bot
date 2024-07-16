@@ -1,13 +1,21 @@
+import asyncio
 import logging
 import os
 
-import dotenv
 import singleton
+from server.config import Settings
 from telebot.async_telebot import AsyncTeleBot
 from telebot.asyncio_helper import ApiTelegramException
 from utils.texttools import split_text
 
-dotenv.load_dotenv()
+logger = logging.getLogger("bot")
+
+
+async def reduce_message_length():
+    await asyncio.sleep(60 * 60)
+    Settings.MESSAGE_LENGTH = max(
+        Settings.MESSAGE_LENGTH / 2, Settings.MIN_MESSAGE_LENGTH
+    )
 
 
 class BaseBot(AsyncTeleBot):
@@ -45,13 +53,22 @@ class BaseBot(AsyncTeleBot):
         try:
             await super().edit_message_text(*args, **kwargs)
         except ApiTelegramException as e:
-            if not (
-                "message is not modified:" in str(e)
-                or "message text is empty" in str(e)
+            if "message is not modified:" in str(e) or "message text is empty" in str(
+                e
             ):
-                raise e
+                logger.warning(f"edit_message_text error: {e}")
+            elif "MESSAGE_TOO_LONG" in str(e):
+                logger.warning(f"edit_message_text error: {e}")
+            elif "Too Many Requests" in str(e):
+                Settings.MESSAGE_LENGTH *= 2
+                asyncio.create_task(reduce_message_length())
+                logger.warning(f"edit_message_text error: {e}")
+            elif "can't parse entities" in str(e):
+                kwargs["parse_mode"] = ""
+                await self.edit_message_text(*args, **kwargs)
+                logger.warning(f"edit_message_text error: {e}")
             else:
-                logging.warning(f"Error: {e}")
+                raise e
 
     async def send_message(self, chat_id: int | str, text: str, *args, **kwargs):
         try:
@@ -60,7 +77,18 @@ class BaseBot(AsyncTeleBot):
                 sent = await super().send_message(chat_id, msg, *args, **kwargs)
             return sent
         except ApiTelegramException as e:
-            raise e
+            if "MESSAGE_TOO_LONG" in str(e):
+                logger.warning(f"send_message error: {e}")
+            elif "Too Many Requests" in str(e):
+                Settings.MESSAGE_LENGTH *= 2
+                asyncio.create_task(reduce_message_length())
+                logger.warning(f"send_message error: {e}")
+            elif "can't parse entities" in str(e):
+                kwargs["parse_mode"] = ""
+                await self.send_message(chat_id, msg, *args, **kwargs)
+                logger.warning(f"send_message error: {e}")
+            else:
+                raise e
 
 
 class PixieeTelegramBot(BaseBot, metaclass=singleton.Singleton):

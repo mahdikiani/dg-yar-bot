@@ -25,6 +25,8 @@ class Settings(metaclass=Singleton):
     profile_service_url: str = "https://profile.pixiee.bot.inbeet.tech"
 
     MAX_SESSION_IDLE_TIME: int = 60 * 60 * 12  # 24 hours
+    MESSAGE_LENGTH: int = 128
+    MIN_MESSAGE_LENGTH: int = 128
 
     USSO_REFRESH_URL: str = os.getenv("USSO_REFRESH_URL")
     PIXIEE_REFRESH_TOKEN: str = os.getenv("PIXIEE_REFRESH_TOKEN")
