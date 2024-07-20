@@ -21,6 +21,7 @@ class Settings(metaclass=Singleton):
     mongo_uri: str = os.getenv("MONGO_URI", default="mongodb://localhost:27017")
     redis_uri: str = os.getenv("REDIS_URI", default="redis://localhost:6379")
     project_name: str = os.getenv("PROJECT_NAME", default="Pixbot")
+    page_max_limit: int = 100
 
     profile_service_url: str = "https://profile.pixiee.bot.inbeet.tech"
 

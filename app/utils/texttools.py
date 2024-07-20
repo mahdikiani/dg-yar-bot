@@ -79,8 +79,15 @@ def split_text(text, max_chunk_size=4096):
     for paragraph in paragraphs:
         if len(current_chunk) + len(paragraph) + 1 > max_chunk_size:
             if current_chunk:
+                if current_chunk.count("```") % 2 == 1:
+                    chunks.append(current_chunk[:current_chunk.rfind("```")].strip())
+                    current_chunk = current_chunk[current_chunk.rfind("```"):]
+                    continue
+                    
                 chunks.append(current_chunk.strip())
                 current_chunk = ""
+                continue
+
         if len(paragraph) > max_chunk_size:
             # Split paragraph into sentences
             sentences = re.split(r"(?<=[.!?]) +", paragraph)
@@ -102,6 +109,62 @@ def split_text(text, max_chunk_size=4096):
                     current_chunk += sentence + " "
         else:
             current_chunk += paragraph + "\n"
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
+
+
+def split_text2(text, max_chunk_size=4096):
+    def should_split_within_code_block(text):
+        return text.count("```") % 2 == 1
+
+    # Split text into paragraphs
+    paragraphs = text.split("\n")
+    chunks = []
+    current_chunk = ""
+    code_block_active = False
+
+    for paragraph in paragraphs:
+        if "```" in paragraph:
+            code_block_active = not code_block_active
+
+        # If we are already within a code block, or if adding this paragraph would exceed max_chunk_size
+        if (
+            len(current_chunk) + len(paragraph) + 1 > max_chunk_size
+            and not code_block_active
+        ):
+            if current_chunk:
+                # Make sure not to split code blocks
+                if should_split_within_code_block(current_chunk):
+                    current_chunk += paragraph + "\n"
+                    continue
+
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+
+        if len(paragraph) > max_chunk_size and not code_block_active:
+            # Split paragraph into sentences if it's not a code block
+            sentences = re.split(r"(?<=[.!?]) +", paragraph)
+            for sentence in sentences:
+                if len(current_chunk) + len(sentence) + 1 > max_chunk_size:
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                        current_chunk = ""
+                if len(sentence) > max_chunk_size:
+                    # Split sentence into words
+                    words = sentence.split(" ")
+                    for word in words:
+                        if len(current_chunk) + len(word) + 1 > max_chunk_size:
+                            if current_chunk:
+                                chunks.append(current_chunk.strip())
+                                current_chunk = ""
+                        current_chunk += word + " "
+                else:
+                    current_chunk += sentence + " "
+        else:
+            current_chunk += paragraph + "\n"
+
     if current_chunk:
         chunks.append(current_chunk.strip())
 
