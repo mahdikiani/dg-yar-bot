@@ -10,6 +10,7 @@ services:
       - 3015:3000
     networks:
       - data
+      - mongo-net
       - traefik-net
     labels:
       - "traefik.enable=true"
@@ -31,35 +32,9 @@ services:
     networks:
       - data
 
-  mongo:
-    image: mongo:latest
-    restart: unless-stopped
-    volumes:
-      - ./mongo.data:/data/db
-    networks:
-      - data
-
-  mongo-express:
-    image: mongo-express
-    restart: unless-stopped
-    environment:
-      ME_CONFIG_MONGODB_SERVER: mongo
-      ME_CONFIG_MONGODB_PORT: "27017"
-    networks:
-      - data
-      - traefik-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express.entrypoints=web"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express.rule=Host(`mongo.${DOMAIN}`)"
-      - "traefik.http.services.${PROJECT_NAME}-mongo-express.loadbalancer.server.port=8081"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.rule=Host(`mongo.${DOMAIN}`)"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.tls=true"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.tls.certresolver=letsencrypt"
-      - "traefik.docker.network=traefik-net"
-
 networks:
   data:
+  mongo-net:
+    external: true
   traefik-net:
     external: true
