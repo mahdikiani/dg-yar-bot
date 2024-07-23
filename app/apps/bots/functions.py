@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
+import aiohttp.client_exceptions
 import httpx
 import openai
 from apps.accounts.schemas import Profile
@@ -93,49 +94,59 @@ async def ai_response(
     bot_name: str = None,
     **kwargs,
 ):
-    bot = handlers.get_bot(bot_name)
-    tapsage = get_tapsage(profile)
-    session = await get_tapsage_session(profile=profile, tapsage=tapsage, **kwargs)
-    stream = tapsage.stream_messages(session, message, split_criteria={"words": True})
+    try:
+        bot = handlers.get_bot(bot_name)
+        tapsage = get_tapsage(profile)
+        session = await get_tapsage_session(profile=profile, tapsage=tapsage, **kwargs)
+        stream = tapsage.stream_messages(session, message, split_criteria={})
 
-    resp_text = ""
-    new_piece = ""
-    async for msg in stream:
-        new_piece += msg.message.content
-        if new_piece[-1] == " " or len(new_piece) > Settings.MESSAGE_LENGTH:
-            resp_text += new_piece
-            if resp_text.count("`") % 2 == 0:
-                try:
-                    # logger.info(f"Response: {len(resp_text)}")
-                    await bot.edit_message_text(
-                        text=resp_text,
-                        chat_id=chat_id,
-                        message_id=response_id,
-                        inline_message_id=inline_message_id,
-                        parse_mode="markdown",
-                    )
-                except Exception as e:
-                    logger.error(f"Error:\n{repr(e)}\n")
-
-            new_piece = ""
-    if new_piece:
-        resp_text += new_piece
-
-    msg_obj = models.Message(user_id=profile.user_id, content=resp_text)
-    await msg_obj.save()
-
-    if resp_text:
+        resp_text = ""
+        new_piece = ""
         try:
+            async for msg in stream:
+                new_piece += msg.message.content
+                if (
+                    new_piece
+                    and new_piece[-1] == " "
+                    or len(new_piece) > Settings.MESSAGE_LENGTH
+                ):
+                    resp_text += new_piece
+                    if resp_text.count("`") % 2 == 0:
+                        try:
+                            # logger.info(f"Response: {len(resp_text)}")
+                            await bot.edit_message_text(
+                                text=resp_text,
+                                chat_id=chat_id,
+                                message_id=response_id,
+                                inline_message_id=inline_message_id,
+                                parse_mode="markdown",
+                            )
+                        except Exception as e:
+                            logger.error(f"Error:\n{repr(e)}\n")
+
+                    new_piece = ""
+        except aiohttp.client_exceptions.ClientPayloadError as e:
+            logger.warning(f"ai_response Error:\n{e}")
+
+        if new_piece:
+            resp_text += new_piece
+        resp_text = resp_text.strip()
+
+        msg_obj = models.Message(user_id=profile.user_id, content=resp_text)
+        await msg_obj.save()
+
+        if resp_text:
             # logger.warning(f"Final response: {len(resp_text)}")
             messages = split_text(resp_text)
             if inline_message_id is None:
                 for i, msg in enumerate(messages):
                     if i == 0:
                         await bot.edit_message_text(
+                            message_id=response_id,
+                        # await bot.send_message(
                             text=msg,
                             chat_id=chat_id,
-                            message_id=response_id,
-                            inline_message_id=inline_message_id,
+                            # inline_message_id=inline_message_id,
                             parse_mode="markdown",
                             reply_markup=(
                                 keyboards.read_keyboard(msg_obj.uid)
@@ -154,7 +165,7 @@ async def ai_response(
                                 else None
                             ),
                         )
-                # bot.delete_message(chat_id, response_id)
+                await bot.delete_message(chat_id, response_id)
 
             else:
                 await bot.edit_message_text(
@@ -165,8 +176,11 @@ async def ai_response(
                     parse_mode="markdown",
                 )
 
-        except Exception as e:
-            logger.error(f"Error:\n{e}\n{resp_text}")
+    except Exception as e:
+        import traceback
+
+        logger.error(f"ai_response Error:\n{e}\n{traceback.format_exc()}")
+        logger.error(resp_text)
 
 
 async def url_response(
