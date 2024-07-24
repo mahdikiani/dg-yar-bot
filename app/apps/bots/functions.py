@@ -165,7 +165,7 @@ async def ai_response(
                                 else None
                             ),
                         )
-                await bot.delete_message(chat_id, response_id)
+                # await bot.delete_message(chat_id, response_id)
 
             else:
                 await bot.edit_message_text(

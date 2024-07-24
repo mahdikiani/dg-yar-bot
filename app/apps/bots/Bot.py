@@ -49,9 +49,9 @@ class BaseBot(AsyncTeleBot):
     def __str__(self):
         return self.link
 
-    async def edit_message_text(self, *args, **kwargs):
+    async def edit_message_text(self, text, *args, **kwargs):
         try:
-            await super().edit_message_text(*args, **kwargs)
+            await super().edit_message_text(text=text[:4096], *args, **kwargs)
         except ApiTelegramException as e:
             if "message is not modified:" in str(e) or "message text is empty" in str(
                 e
