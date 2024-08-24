@@ -22,6 +22,10 @@ class AIEngines(str, Enum):
     @property
     def tapsage_bot_id(self):
         return {
+            AIEngines.gpt_4o: "c5a435e6-335b-419a-8386-41247bb6a359",
+            # AIEngines.gpt_4o: "55d1e911-67f1-493c-b4ff-bbafcca0e26b",
+        }[self]
+        return {
             # AIEngines.gpt_4o: "b6eff700-4cde-4407-93e6-0a93de7db61d",
             AIEngines.gpt_4o: "55d1e911-67f1-493c-b4ff-bbafcca0e26b",
             AIEngines.gpt_4o_mini: "b6eff700-4cde-4407-93e6-0a93de7db61d",

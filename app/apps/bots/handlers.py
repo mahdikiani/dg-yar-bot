@@ -2,7 +2,8 @@ import logging
 
 import singleton
 from apps.bots import Bot, middlewares
-from apps.bots.bot_functions import callback, inline_query, inline_query_ai, message
+from apps.bots.bot_functions import (callback, inline_query, inline_query_ai,
+                                     message)
 from server.config import Settings
 from telebot import async_telebot
 from utils.basic import get_all_subclasses

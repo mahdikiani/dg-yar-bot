@@ -65,7 +65,7 @@ class BaseBot(AsyncTeleBot):
                 logger.warning(f"edit_message_text error: {e}")
             elif "can't parse entities" in str(e):
                 kwargs["parse_mode"] = ""
-                await self.edit_message_text(*args, **kwargs)
+                await self.edit_message_text(text, *args, **kwargs)
                 logger.warning(f"edit_message_text error: {e}")
             else:
                 raise e
@@ -85,7 +85,7 @@ class BaseBot(AsyncTeleBot):
                 logger.warning(f"send_message error: {e}")
             elif "can't parse entities" in str(e):
                 kwargs["parse_mode"] = ""
-                await self.send_message(chat_id, msg, *args, **kwargs)
+                await self.send_message(chat_id, text, *args, **kwargs)
                 logger.warning(f"send_message error: {e}")
             else:
                 raise e

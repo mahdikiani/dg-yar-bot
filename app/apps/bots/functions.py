@@ -16,7 +16,9 @@ from apps.webpage.schemas import Webpage
 from json_advanced import dumps
 from server.config import Settings
 from tapsage.async_tapsage import AsyncTapSageBot
-from tapsage.taptypes import Session
+from tapsage.taptypes import Session #as TapSession
+from metisai.async_metis import AsyncMetisBot
+from metisai.metistypes import Session as MetisSession
 from usso.async_session import AsyncUssoSession
 from utils.texttools import split_text
 
@@ -26,7 +28,8 @@ logger = logging.getLogger("bot")
 def get_tapsage(profile: Profile):
     for engine in AIEngines:
         if profile.data.ai_engine.name == engine.name:
-            return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
+            return AsyncMetisBot(Settings.METIS_API_KEY, engine.tapsage_bot_id)
+            # return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
 
 
 def get_openai() -> openai.AsyncOpenAI:
@@ -51,7 +54,7 @@ def get_openai() -> openai.AsyncOpenAI:
 
 async def get_tapsage_session(
     profile: Profile,
-    tapsage: AsyncTapSageBot | None = None,
+    tapsage: AsyncTapSageBot | AsyncMetisBot | None = None,
     max_session_idle_time: timedelta | int = Settings.MAX_SESSION_IDLE_TIME,
 ) -> Session:
     if profile is None:
@@ -122,7 +125,9 @@ async def ai_response(
                                 parse_mode="markdown",
                             )
                         except Exception as e:
-                            logger.error(f"Error:\n{repr(e)}\n")
+                            logger.error(
+                                f"Error:\n{repr(e)}\n{len(resp_text)}\t{resp_text}"
+                            )
 
                     new_piece = ""
         except aiohttp.client_exceptions.ClientPayloadError as e:

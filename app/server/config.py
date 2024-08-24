@@ -32,6 +32,7 @@ class Settings(metaclass=Singleton):
     USSO_REFRESH_URL: str = os.getenv("USSO_REFRESH_URL")
     PIXIEE_REFRESH_TOKEN: str = os.getenv("PIXIEE_REFRESH_TOKEN")
     TAPSAGE_API_KEY: str = os.getenv("TAPSAGE_API_KEY")
+    METIS_API_KEY: str = os.getenv("METIS_API_KEY")
     USSO_API_KEY: str = os.getenv("USSO_API_KEY")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
     PROXY: str = os.getenv("PROXY")

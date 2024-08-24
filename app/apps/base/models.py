@@ -5,19 +5,15 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Coroutine, Literal, Self
 
-from beanie import Document, Insert, Replace, Save, SaveChanges, Update, before_event
+from beanie import (Document, Insert, Replace, Save, SaveChanges, Update,
+                    before_event)
 from json_advanced import dumps
 from singleton import Singleton
 from utils import aionetwork, basic
 
-from .schemas import (
-    BaseEntitySchema,
-    BusinessEntitySchema,
-    BusinessOwnedEntitySchema,
-    OwnedEntitySchema,
-    TaskLogRecord,
-    TaskSchema,
-)
+from .schemas import (BaseEntitySchema, BusinessEntitySchema,
+                      BusinessOwnedEntitySchema, OwnedEntitySchema,
+                      TaskLogRecord, TaskSchema)
 
 
 class BaseEntity(BaseEntitySchema, Document):
