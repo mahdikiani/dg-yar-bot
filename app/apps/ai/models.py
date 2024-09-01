@@ -20,13 +20,14 @@ class AIEngines(str, Enum):
         return cls.gpt_4o
 
     @property
-    def tapsage_bot_id(self):
+    def metis_bot_id(self):
         return {
             AIEngines.gpt_4o: "c5a435e6-335b-419a-8386-41247bb6a359",
-            # AIEngines.gpt_4o: "55d1e911-67f1-493c-b4ff-bbafcca0e26b",
         }[self]
+
+    @property
+    def tapsage_bot_id(self):
         return {
-            # AIEngines.gpt_4o: "b6eff700-4cde-4407-93e6-0a93de7db61d",
             AIEngines.gpt_4o: "55d1e911-67f1-493c-b4ff-bbafcca0e26b",
             AIEngines.gpt_4o_mini: "b6eff700-4cde-4407-93e6-0a93de7db61d",
             AIEngines.gpt_4_turbo: "3e0640f3-286e-4c4d-abea-0993d522771f",
@@ -39,6 +40,7 @@ class AIEngines(str, Enum):
 
     @classmethod
     def thumbnail_url(cls, engine: str):
+        engine = AIEngines(engine)
         return {
             AIEngines.gpt_4o: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
             AIEngines.gpt_4_turbo: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
@@ -68,7 +70,7 @@ class WebpageResponse(BaseEntity):
     captions: list[str] | None = None
     ctas: list[str]
     image_prompts: list[str]
-    url: str | None = None
+    url: str 
     webpage_id: uuid.UUID
     ai_id: uuid.UUID
 

@@ -14,7 +14,7 @@ logger = logging.getLogger("bot")
 async def reduce_message_length():
     await asyncio.sleep(60 * 60)
     Settings.MESSAGE_LENGTH = max(
-        Settings.MESSAGE_LENGTH / 2, Settings.MIN_MESSAGE_LENGTH
+        Settings.MESSAGE_LENGTH // 2, Settings.MIN_MESSAGE_LENGTH
     )
 
 

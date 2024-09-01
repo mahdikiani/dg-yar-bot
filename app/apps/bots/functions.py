@@ -11,12 +11,12 @@ from apps.ai.models import AIEngines, WebpageResponse
 from apps.ai.schemas import AIRequest
 from apps.base.schemas import StepStatus
 from apps.bots import handlers, keyboards, models
-from apps.project.schemas import Project, ProjectStatus
+from apps.project.schemas import Project, ProjectStatus, Relation
 from apps.webpage.schemas import Webpage
 from json_advanced import dumps
 from server.config import Settings
 from tapsage.async_tapsage import AsyncTapSageBot
-from tapsage.taptypes import Session #as TapSession
+from tapsage.taptypes import Session as TapSession
 from metisai.async_metis import AsyncMetisBot
 from metisai.metistypes import Session as MetisSession
 from usso.async_session import AsyncUssoSession
@@ -24,12 +24,15 @@ from utils.texttools import split_text
 
 logger = logging.getLogger("bot")
 
+Session = MetisSession | TapSession
 
-def get_tapsage(profile: Profile):
+
+def get_tapsage(profile: Profile) -> AsyncTapSageBot | AsyncMetisBot:
     for engine in AIEngines:
         if profile.data.ai_engine.name == engine.name:
-            return AsyncMetisBot(Settings.METIS_API_KEY, engine.tapsage_bot_id)
+            return AsyncMetisBot(Settings.METIS_API_KEY, engine.metis_bot_id)
             # return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
+    return AsyncMetisBot(Settings.METIS_API_KEY, AIEngines.gpt_4o.metis_bot_id)
 
 
 def get_openai() -> openai.AsyncOpenAI:
@@ -72,7 +75,7 @@ async def get_tapsage_session(
             session = await tapsage.create_session(user_id)
             return session
 
-        session = await tapsage.retrieve_session(sessions[-1].id)
+        session = await tapsage.retrieve_session(sessions[0].id)
         if (
             session.messages
             and datetime.now(timezone.utc) - session.messages[-1].timestamp
@@ -84,17 +87,17 @@ async def get_tapsage_session(
         return session
     except Exception as e:
         logger.error(e)
-        return
+        raise
 
 
 async def ai_response(
     *,
     message: str,
     profile: Profile,
-    chat_id: str = None,
-    response_id: str = None,
-    inline_message_id: str = None,
-    bot_name: str = None,
+    chat_id: str | None = None,
+    response_id: str | None = None,
+    inline_message_id: str | None = None,
+    bot_name: str = "telegram",
     **kwargs,
 ):
     try:
@@ -143,12 +146,12 @@ async def ai_response(
         if resp_text:
             # logger.warning(f"Final response: {len(resp_text)}")
             messages = split_text(resp_text)
-            if inline_message_id is None:
+            if inline_message_id is None and chat_id is not None:
                 for i, msg in enumerate(messages):
                     if i == 0:
                         await bot.edit_message_text(
                             message_id=response_id,
-                        # await bot.send_message(
+                            # await bot.send_message(
                             text=msg,
                             chat_id=chat_id,
                             # inline_message_id=inline_message_id,
@@ -194,7 +197,7 @@ async def url_response(
     user_id: str,
     chat_id: str,
     response_id: str,
-    bot_name: str = None,
+    bot_name: str,
     **kwargs,
 ):
     from apps.bots.routes import get_reverse_url
@@ -232,9 +235,9 @@ async def content_response(
     *,
     wid: str,
     profile: Profile,
-    chat_id: str = None,
-    response_id: str = None,
-    bot_name: str = None,
+    chat_id: str | None = None,
+    response_id: str | None = None,
+    bot_name: str = "pixiee_ai_bot",
     **kwargs,
 ):
     async with AsyncUssoSession(
@@ -249,13 +252,13 @@ async def content_response(
         reverse_url = get_reverse_url("ai_webpage_response")
         webhook_url = f"https://{Settings.root_url}{reverse_url}"
         key = "ads_for_brand"
-        data = webpage.ai_data.model_dump()
-        data["brief"] = str(webpage.ai_data.brief)
+        data = webpage.ai_data.model_dump() if webpage.ai_data else {}
+        data["brief"] = str(webpage.ai_data.brief) if webpage.ai_data else None
         ai_request = AIRequest(
             # prompt: str | None = None
             context=data,
             user_id=profile.user_id,
-            task_status="init",
+            task_status=StepStatus.init,
             # answer: dict[str, Any] | None = None
             # model: AIEngines = AIEngines.gpt_4o
             template_key=key,
@@ -360,8 +363,10 @@ async def content_submit(
                 render=StepStatus.none,
             ),
             related_objects=[
-                {"id": webpage_response.webpage_id, "object_type": "Webpage"},
-                {"id": webpage_response.ai_id, "object_type": "AIRequest"},
+                Relation(
+                    **{"id": webpage_response.webpage_id, "object_type": "Webpage"}
+                ),
+                Relation(**{"id": webpage_response.ai_id, "object_type": "AIRequest"}),
             ],
             data=webpage_response.get_project_data(state),
             metadata={
