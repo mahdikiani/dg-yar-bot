@@ -17,6 +17,8 @@ from . import config, db
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):  # type: ignore
     """Initialize application services."""
+    logging.info(f"Service initialization")
+
     await db.init_db()
     config.Settings().config_logger()
     await BotFunctions().setup()

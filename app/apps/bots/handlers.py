@@ -1,12 +1,14 @@
 import logging
 
 import singleton
-from apps.bots import Bot, middlewares
-from apps.bots.bot_functions import (callback, inline_query, inline_query_ai,
-                                     message)
+from apps.bots import Bot
+from apps.bots.bot_functions import callback, inline_query, inline_query_ai, message
 from server.config import Settings
 from telebot import async_telebot
+from utils.apitools import get_reverse_url
 from utils.basic import get_all_subclasses
+
+from . import middlewares
 
 logger = logging.getLogger("bot")
 
@@ -42,6 +44,7 @@ class BotFunctions(metaclass=singleton.Singleton):
             return
 
         for bot_cls in get_all_subclasses(Bot.BaseBot):
+            logging.info(f"Setting up bot: {bot_cls.me}")
             bot: Bot.BaseBot = bot_cls()
 
             await self.setup_webhook(bot)
@@ -50,9 +53,11 @@ class BotFunctions(metaclass=singleton.Singleton):
         self.is_setup = True
 
     async def setup_webhook(self, bot: Bot.BaseBot):
-        from apps.bots import routes
+        from apps.bots.routes import router
 
-        reverse_url = routes.get_reverse_url(name="bot_update", bot=bot.webhook_route)
+        reverse_url = get_reverse_url(
+            name="bot_update", bot=bot.webhook_route, router=router
+        )
         webhook_url = f"https://{Settings.root_url}{reverse_url}"
         if (await bot.get_webhook_info()).url != webhook_url:
             logger.info(f"set webhook for {bot} with url: {webhook_url}")
@@ -69,7 +74,7 @@ class BotFunctions(metaclass=singleton.Singleton):
         bot.register_message_handler(
             message,
             func=lambda _: True,
-            content_types=["text", "voice"],
+            content_types=["text", "voice", "photo"],
             pass_bot=True,
         )
         if bot.bot_type == "telegram":
@@ -89,6 +94,10 @@ async def update_bot(bot_route: str, update_dict: dict, *args, **kwargs):
         if update:
             await bot.process_new_updates([update])
     except Exception as e:
+        import traceback
+
+        traceback_str = "".join(traceback.format_tb(e.__traceback__))
+        logger.warning(traceback_str)
         logger.error(f"Error in processing update: {e}")
 
 

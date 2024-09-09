@@ -1,8 +1,4 @@
-import uuid
 from enum import Enum
-
-from apps.base.models import BaseEntity
-from apps.project.schemas import ProjectData
 
 
 class AIEngines(str, Enum):
@@ -62,42 +58,3 @@ class AIEngines(str, Enum):
             AIEngines.claud3sonnet: 0.007,
             AIEngines.claud3haiku: 0.007,
         }[self]
-
-
-class WebpageResponse(BaseEntity):
-    titles: list[str]
-    subtitles: list[str]
-    captions: list[str] | None = None
-    ctas: list[str]
-    image_prompts: list[str]
-    url: str 
-    webpage_id: uuid.UUID
-    ai_id: uuid.UUID
-
-    def __str__(self):
-        text = ""
-        for k, v in self.model_dump().items():
-            if not isinstance(v, list):
-                continue
-            text += f"*{k.capitalize()}*:\n"
-            for i, msg in enumerate(v):
-                text += f"{i+1}. `{msg}`\n"
-            text += "\n"
-        return text
-
-    def get_state(self, state: tuple[int, int, int, int, int]):
-        i = 0
-        res = {}
-        for k, v in self.model_dump().items():
-            if not isinstance(v, list):
-                continue
-            res[k] = v[state[i]]
-            i += 1
-        return res
-
-    def get_project_data(self, state):
-        return ProjectData(
-            texts=[self.title[state[0]], self.subtitle[state[1]]],
-            caption=self.caption[state[2]],
-            cta=self.cta[state[3]],
-        )

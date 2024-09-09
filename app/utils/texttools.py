@@ -80,10 +80,10 @@ def split_text(text, max_chunk_size=4096):
         if len(current_chunk) + len(paragraph) + 1 > max_chunk_size:
             if current_chunk:
                 if current_chunk.count("```") % 2 == 1:
-                    chunks.append(current_chunk[:current_chunk.rfind("```")].strip())
-                    current_chunk = current_chunk[current_chunk.rfind("```"):]
+                    chunks.append(current_chunk[: current_chunk.rfind("```")].strip())
+                    current_chunk = current_chunk[current_chunk.rfind("```") :]
                     continue
-                    
+
                 chunks.append(current_chunk.strip())
                 current_chunk = ""
                 continue

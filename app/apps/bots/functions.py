@@ -1,5 +1,4 @@
 import logging
-import uuid
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
@@ -7,19 +6,13 @@ import aiohttp.client_exceptions
 import httpx
 import openai
 from apps.accounts.schemas import Profile
-from apps.ai.models import AIEngines, WebpageResponse
-from apps.ai.schemas import AIRequest
-from apps.base.schemas import StepStatus
-from apps.bots import handlers, keyboards, models
-from apps.project.schemas import Project, ProjectStatus, Relation
-from apps.webpage.schemas import Webpage
-from json_advanced import dumps
+from apps.ai.models import AIEngines
+from apps.bots import handlers, keyboards, models, services
+from metisai.async_metis import AsyncMetisBot
+from metisai.metistypes import Session as MetisSession
 from server.config import Settings
 from tapsage.async_tapsage import AsyncTapSageBot
 from tapsage.taptypes import Session as TapSession
-from metisai.async_metis import AsyncMetisBot
-from metisai.metistypes import Session as MetisSession
-from usso.async_session import AsyncUssoSession
 from utils.texttools import split_text
 
 logger = logging.getLogger("bot")
@@ -200,200 +193,71 @@ async def url_response(
     bot_name: str,
     **kwargs,
 ):
-    from apps.bots.routes import get_reverse_url
+    bot = handlers.get_bot(bot_name)
+    sheet_url = await services.get_sheet_url()
+    if "amazon" in url:
+        provider = "Amazon"
 
-    reverse_url = get_reverse_url("webpage_webhook")
-    webhook_url = f"https://{Settings.root_url}{reverse_url}"
+    elif "digikala" in url:
+        provider = "Digikala"
 
-    async with AsyncUssoSession(
-        Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
-    ) as session:
-        async with session.post(
-            Webpage.create_url(),
-            json={
-                "url": url,
-                "metadata": {
-                    "webhook": webhook_url,
-                    "user_id": str(user_id),
-                    "chat_id": chat_id,
-                    "message_id": response_id,
-                    "bot_name": bot_name,
-                },
-            },
-        ) as r:
-            if kwargs.get("raise_for_status", True):
-                r.raise_for_status()
-            webpage = Webpage(**await r.json())
+    else:
+        # Sazito
+        if url[-1] == "/":
+            url = url[:-1]
 
-        async with session.post(
-            f"https://api.pixiee.io/webpages/{webpage.uid}/start"
-        ) as r_start:
-            r_start.raise_for_status()
-
-
-async def content_response(
-    *,
-    wid: str,
-    profile: Profile,
-    chat_id: str | None = None,
-    response_id: str | None = None,
-    bot_name: str = "pixiee_ai_bot",
-    **kwargs,
-):
-    async with AsyncUssoSession(
-        Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
-    ) as session:
-        async with session.get(f"https://api.pixiee.io/webpages/{wid}") as r:
-            r.raise_for_status()
-            webpage = Webpage(**await r.json())
-
-        from apps.bots.routes import get_reverse_url
-
-        reverse_url = get_reverse_url("ai_webpage_response")
-        webhook_url = f"https://{Settings.root_url}{reverse_url}"
-        key = "ads_for_brand"
-        data = webpage.ai_data.model_dump() if webpage.ai_data else {}
-        data["brief"] = str(webpage.ai_data.brief) if webpage.ai_data else None
-        ai_request = AIRequest(
-            # prompt: str | None = None
-            context=data,
-            user_id=profile.user_id,
-            task_status=StepStatus.init,
-            # answer: dict[str, Any] | None = None
-            # model: AIEngines = AIEngines.gpt_4o
-            template_key=key,
-            # ai_status
-            metadata={
-                "webhook": webhook_url,
-                "user_id": str(profile.user_id),
-                "chat_id": chat_id,
-                "message_id": response_id,
-                "bot_name": bot_name,
-                "url": webpage.url,
-                "webpage_id": webpage.uid,
-            },
-        )
         try:
-            async with session.post(
-                f"https://api.pixiee.io/ai/",
-                data=dumps(ai_request.model_dump(exclude_none=True)),
-                headers={"Content-Type": "application/json"},
-            ) as r:
-                r.raise_for_status()
-                ai_response = AIRequest(**await r.json())
+            product_list = await services.aio_request(
+                method="get", url=f"{url}/api/v1/products"
+            )
+        except aiohttp.client_exceptions.ClientResponseError as e:
+            logger.error(f"{type(e)}: {e}")
+            await bot.edit_message_text(
+                chat_id=chat_id, message_id=response_id, text="فروشنده پشتیبانی نمیشود"
+            )
+            return
 
-            async with session.post(
-                f"https://api.pixiee.io/ai/{ai_response.uid}/start"
-            ) as r_start:
-                r_start.raise_for_status()
-                logging.info(f"AIRequest started processing {ai_response.uid}")
-        except Exception as e:
-            logging.error(f"Content submit failed {e} for {ai_response.uid}")
+        if product_list:
+            provider = "Sazito"
 
-            #
+        else:
+            await bot.edit_message_text(
+                chat_id=chat_id, message_id=response_id, text="فروشنده پشتیبانی نمیشود"
+            )
 
-            # async with session.post(f"https://api.pixiee.io/ai/{key}", json=data) as r:
-            #     r.raise_for_status()
-            #     response: dict[str, list] = await r.json()
-
-    # webpage_response = WebpageResponse(
-    #     **response, url=webpage.url, webpage_id=webpage.uid
-    # )
-    # await webpage_response.save()
-
-    # bot = handlers.get_bot(bot_name)
-    # await bot.send_message(
-    #     text=str(webpage_response),
-    #     chat_id=chat_id,
-    #     parse_mode="markdown",
-    #     reply_markup=keyboards.content_keyboard(webpage_response.uid),
-    # )
-
-    # await bot.delete_message(chat_id, response_id)
-
-
-async def stt_response(voice_bytes: BytesIO, **kwargs):
-    client = get_openai()
-    transcription = await client.audio.transcriptions.create(
-        model="whisper-1", file=voice_bytes
-    )
-    return transcription.text
-
-
-async def tts_response(text: str, **kwargs):
-    client = get_openai()
-
-    response = await client.audio.speech.create(
-        model="tts-1", voice="alloy", input=text
+    text = "\n".join(
+        [f"Provider: {provider}", f"URL: {url}", "", f"Sheet URL: {sheet_url}"]
     )
 
-    buffer = BytesIO()
-    for data in response.response.iter_bytes():
-        buffer.write(data)
-    buffer.seek(0)
-    return buffer
+    await bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=response_id,
+        text=text,
+        reply_markup=keyboards.sheet_keyboard(sheet_url),
+    )
 
 
-async def content_submit(
-    wrid: uuid.UUID,
-    chat_id: str,
-    bot_name: str,
-    profile: Profile,
-    state: tuple[int, int, int, int, int],
-    response_id: str,
-    **kwargs,
+async def image_response(
+    *,
+    photo_bytes: BytesIO,
+    user_id,
+    chat_id,
+    response_id,
+    bot_name,
 ):
-    from apps.bots.routes import get_reverse_url
+    import replicate
 
-    reverse_url = get_reverse_url("project_webhook")
-    webhook_url = f"https://{Settings.root_url}{reverse_url}"
+    client = replicate.Client(api_token=Settings.REPLICATE_API_TOKEN)
 
-    try:
-        handlers.get_bot(bot_name)
-        webpage_response: WebpageResponse = await WebpageResponse.get_item(wrid)
-        project = Project(
-            user_id=profile.user_id,
-            url=webpage_response.url,
-            mode="auto",
-            project_step="image",
-            project_status=ProjectStatus(
-                brief=StepStatus.init,
-                content=StepStatus.done,
-                image=StepStatus.none,
-                render=StepStatus.none,
-            ),
-            related_objects=[
-                Relation(
-                    **{"id": webpage_response.webpage_id, "object_type": "Webpage"}
-                ),
-                Relation(**{"id": webpage_response.ai_id, "object_type": "AIRequest"}),
-            ],
-            data=webpage_response.get_project_data(state),
-            metadata={
-                "webhook": webhook_url,
-                "user_id": str(profile.user_id),
-                "chat_id": chat_id,
-                "message_id": response_id,
-                "bot_name": bot_name,
-                "state": state,
-            },
-        )
-        async with AsyncUssoSession(
-            Settings.USSO_REFRESH_URL, Settings.PIXIEE_REFRESH_TOKEN
-        ) as session:
-            async with session.post(
-                Project.create_url(),
-                data=dumps(project.model_dump(exclude_none=True)),
-                headers={"Content-Type": "application/json"},
-            ) as r:
-                r.raise_for_status()
-                project = Project(**await r.json())
+    output = client.run(Settings.REPLICATE_SERVICE, input={"image": photo_bytes})
 
-            async with session.post(
-                f"https://api.pixiee.io/projects/{project.uid}/start"
-            ) as r_start:
-                r_start.raise_for_status()
-    except Exception as e:
-        logging.error(f"Content submit failed {e} for {project.uid}")
+    bot = handlers.get_bot(bot_name)
+    
+    await bot.edit_message_text(
+        chat_id=chat_id, message_id=response_id, text=f"Image received {output}"
+    )
+    
+    image = httpx.get(output).content
+    await bot.send_photo(chat_id=chat_id, photo=image)
 
-    logger.info(f"Content submit: {project}")
+    

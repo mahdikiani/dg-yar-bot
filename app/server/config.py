@@ -35,6 +35,11 @@ class Settings(metaclass=Singleton):
     METIS_API_KEY: str = os.getenv("METIS_API_KEY")
     USSO_API_KEY: str = os.getenv("USSO_API_KEY")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    REPLICATE_API_TOKEN: str = os.getenv("REPLICATE_API_TOKEN")
+    REPLICATE_SERVICE: str = (
+        "lucataco/remove-bg:95fcc2a26d3899cd6c2691c900465aaeff466285a65c14638cc5f36f34befaf1"
+    )
+    GOOGLE_SECRET: str = os.getenv("GOOGLE_SECRET")
     PROXY: str = os.getenv("PROXY")
 
     testing: bool = os.getenv("TESTING", default=False)
@@ -44,7 +49,7 @@ class Settings(metaclass=Singleton):
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "level": "WARNING",
+                "level": "INFO",
                 "formatter": "standard",
             },
             "file": {

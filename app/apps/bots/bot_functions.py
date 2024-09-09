@@ -144,6 +144,24 @@ async def voice(message: schemas.MessageOwned, bot: Bot.BaseBot):
         logging.error(e)
 
 
+async def photo(message: schemas.MessageOwned, bot: Bot.BaseBot):
+    response: schemas.MessageOwned = await bot.reply_to(
+        message, "Please wait photo ..."
+    )
+    photo = message.photo[-1]
+    photo_info = await bot.get_file(photo.file_id)
+    photo_file = await bot.download_file(photo_info.file_path)
+    photo_bytes = BytesIO(photo_file)
+    photo_bytes.name = "photo.jpg"
+    await functions.image_response(
+        photo_bytes=photo_bytes,
+        user_id=message.user.uid,
+        chat_id=message.chat.id,
+        response_id=response.message_id,
+        bot_name=bot.me,
+    )
+
+
 async def url_response(message: schemas.MessageOwned, bot: Bot.BaseBot):
     response = await bot.reply_to(message, "Please wait url ...", reply_markup=None)
     try:
@@ -161,6 +179,10 @@ async def url_response(message: schemas.MessageOwned, bot: Bot.BaseBot):
 async def message(message: schemas.MessageOwned, bot: Bot.BaseBot):
     if message.voice:
         return await voice(message, bot)
+
+    if message.photo:
+        return await photo(message, bot)
+
     if (
         message.text.startswith("/")
         or message.text in command_key
@@ -172,6 +194,15 @@ async def message(message: schemas.MessageOwned, bot: Bot.BaseBot):
         return await url_response(message, bot)
 
     return await prompt(message, bot)
+
+
+async def callback_sheet(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
+    if call.data.startswith("sheet_ok_"):
+        await bot.send_message(call.message.chat.id, "لیست کالای شما در پنل قرار گرفت.")
+    else:
+        await bot.send_message(
+            call.message.chat.id, "درخواست ارسال لیست کالای شما لغو شد."
+        )
 
 
 async def callback_read(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
@@ -255,7 +286,9 @@ async def callback(call: async_telebot.types.CallbackQuery, bot: Bot.BaseBot):
     if bot.bot_type == "telegram":
         await bot.answer_callback_query(call.id, text="Processing ...")
 
-    if call.data.startswith("read_"):
+    if call.data.startswith("sheet_"):
+        return await callback_sheet(call, bot)
+    elif call.data.startswith("read_"):
         return await callback_read(call, bot)
     elif call.data.startswith("answer_"):
         return await callback_answer(call, bot)

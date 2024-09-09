@@ -68,7 +68,7 @@ class OwnedEntitySchema(BaseEntitySchema):
 
 
 class BusinessEntitySchema(BaseEntitySchema):
-    business_id: uuid.UUID
+    business_name: str
 
     @property
     def create_exclude_set(self) -> list[str]:

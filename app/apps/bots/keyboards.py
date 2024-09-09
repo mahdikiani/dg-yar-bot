@@ -1,7 +1,11 @@
 from apps.accounts.schemas import Profile
 from apps.ai.models import AIEngines
-from telebot.types import (InlineKeyboardButton, InlineKeyboardMarkup,
-                           KeyboardButton, ReplyKeyboardMarkup)
+from telebot.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 from utils import b64tools
 
 
@@ -10,17 +14,12 @@ def main_keyboard():
     markup.add(
         KeyboardButton("راهنما"),
         KeyboardButton("ناحیه کاربری"),
-        KeyboardButton("خرید اعتبار"),
-    )
-    markup.add(
-        KeyboardButton("مکالمه جدید"),
-        KeyboardButton("نمایش مکالمه"),
-        KeyboardButton("مکالمه‌ها"),
     )
 
-    # markup.add(
-    #     KeyboardButton("همگام سازی با سایر اکانت ها"),
-    # )
+    markup.add(
+        KeyboardButton("خرید اعتبار"),
+        KeyboardButton("ثبت شماره تماس"),
+    )
 
     return markup
 
@@ -58,6 +57,15 @@ def read_keyboard(message_id):
     markup = InlineKeyboardMarkup()
     markup.add(
         InlineKeyboardButton("خواندن", callback_data=f"read_{message_id}"),
+    )
+    return markup
+
+
+def sheet_keyboard(sheet_url):
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("تایید", callback_data=f"sheet_ok_{123}"),
+        InlineKeyboardButton("رد", callback_data=f"sheet_cancel_{123}"),
     )
     return markup
 

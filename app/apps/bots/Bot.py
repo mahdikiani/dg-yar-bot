@@ -91,22 +91,8 @@ class BaseBot(AsyncTeleBot):
                 raise e
 
 
-class PixieeTelegramBot(BaseBot, metaclass=singleton.Singleton):
+class BlitzTelegramBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("TELEGRAM_TOKEN")
     # bot_type = "telegram"
-    me = "pixiee_ai_bot"  # todo change the name
-    webhook_route = "pixiee-telegram"
-
-
-class TGTelegramBot(BaseBot, metaclass=singleton.Singleton):
-    token = os.getenv("TELEGRAM_TOKEN_dev")
-    # bot_type = "telegram"
-    me = "tgyt_bot"  # todo change the name
-    webhook_route = "pixiee-telegram-dev"
-
-
-class BaleBot(BaseBot, metaclass=singleton.Singleton):
-    token = os.getenv("BALE_TOKEN")
-    # bot_type = "bale"
-    me = "pixiee_bot"
-    webhook_route = "pixiee-bale"
+    me = "blitz_digikala_assitant_bot"  # todo change the name
+    webhook_route = "blitz-telegram"

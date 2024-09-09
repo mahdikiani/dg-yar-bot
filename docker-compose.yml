@@ -1,13 +1,12 @@
 services:  
-  app:
+  digikala-bot:
     build: app
     restart: unless-stopped
+    command: python3 app.py
     env_file:
       - .env
     volumes:
       - ./app:/app
-    ports:
-      - 3015:3000
     networks:
       - data
       - mongo-net
