@@ -1,4 +1,4 @@
-# Django Docker Boilerplate
+# Fastapi telegram bot Docker Boilerplate
 This boilerplate provides a comprehensive setup for a Django application, utilizing Docker and Docker Compose for containerization, Traefik for reverse proxy, and including Celery for asynchronous task management with Redis. PostgreSQL is used as the database. This setup is designed for development and production environments, ensuring easy scalability and deployment.
 
 ## Features
