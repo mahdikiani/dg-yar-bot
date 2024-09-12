@@ -21,3 +21,11 @@ tapsage-client>=0.8.1
 metisai>=0.3.3
 openai
 replicate
+apscheduler
+
+apify_client
+
+pandas
+google-auth
+gspread
+gspread-dataframe

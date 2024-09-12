@@ -5,14 +5,15 @@ from io import BytesIO
 import aiohttp.client_exceptions
 import httpx
 import openai
+from metisai.async_metis import AsyncMetisBot
+from metisai.metistypes import Session as MetisSession
+from tapsage.async_tapsage import AsyncTapSageBot
+from tapsage.taptypes import Session as TapSession
+
 from apps.accounts.schemas import Profile
 from apps.ai.models import AIEngines
 from apps.bots import handlers, keyboards, models, services
-from metisai.async_metis import AsyncMetisBot
-from metisai.metistypes import Session as MetisSession
 from server.config import Settings
-from tapsage.async_tapsage import AsyncTapSageBot
-from tapsage.taptypes import Session as TapSession
 from utils.texttools import split_text
 
 logger = logging.getLogger("bot")
@@ -252,12 +253,10 @@ async def image_response(
     output = client.run(Settings.REPLICATE_SERVICE, input={"image": photo_bytes})
 
     bot = handlers.get_bot(bot_name)
-    
+
     await bot.edit_message_text(
         chat_id=chat_id, message_id=response_id, text=f"Image received {output}"
     )
-    
+
     image = httpx.get(output).content
     await bot.send_photo(chat_id=chat_id, photo=image)
-
-    

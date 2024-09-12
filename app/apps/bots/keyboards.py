@@ -1,11 +1,12 @@
-from apps.accounts.schemas import Profile
-from apps.ai.models import AIEngines
 from telebot.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
+
+from apps.accounts.schemas import Profile
+from apps.ai.models import AIEngines
 from utils import b64tools
 
 

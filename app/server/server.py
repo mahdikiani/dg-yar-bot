@@ -1,27 +1,32 @@
+import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
 
 import fastapi
 import pydantic
-from apps.bots.handlers import BotFunctions
-from apps.bots.routes import router as bots_router
-from core import exceptions
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from json_advanced import dumps
 
-from . import config, db
+from apps.bots.handlers import BotFunctions
+from apps.bots.routes import router as bots_router
+from core import exceptions
+
+from . import config, db, workers
 
 
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):  # type: ignore
     """Initialize application services."""
+    config.Settings.config_logger()
+
     logging.info(f"Service initialization")
 
     await db.init_db()
-    config.Settings().config_logger()
     await BotFunctions().setup()
+
+    app.state.worker = asyncio.create_task(workers.init_workers())
 
     logging.info("Startup complete")
     yield
@@ -102,3 +107,7 @@ app.include_router(bots_router)
 @app.get("/")
 async def index():
     return {"message": "Hello World!"}
+
+@app.get("/health")
+async def index():
+    return {"status": "ok"}

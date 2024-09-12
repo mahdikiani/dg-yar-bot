@@ -2,10 +2,11 @@ import logging
 import uuid
 from io import BytesIO
 
+from telebot import async_telebot
+
 from apps.accounts.handlers import get_user_profile, get_usso_user
 from apps.ai.models import AIEngines
 from apps.bots import Bot, functions, keyboards, models, schemas
-from telebot import async_telebot
 from utils.b64tools import b64_decode_uuid
 from utils.texttools import is_valid_url
 

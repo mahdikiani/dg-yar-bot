@@ -3,9 +3,10 @@ import logging
 import os
 
 import singleton
-from server.config import Settings
 from telebot.async_telebot import AsyncTeleBot
 from telebot.asyncio_helper import ApiTelegramException
+
+from server.config import Settings
 from utils.texttools import split_text
 
 logger = logging.getLogger("bot")
@@ -91,8 +92,15 @@ class BaseBot(AsyncTeleBot):
                 raise e
 
 
-class BlitzTelegramBot(BaseBot, metaclass=singleton.Singleton):
+class DGYarBaleTelegramBot(BaseBot, metaclass=singleton.Singleton):
     token = os.getenv("TELEGRAM_TOKEN")
     # bot_type = "telegram"
-    me = "blitz_digikala_assitant_bot"  # todo change the name
-    webhook_route = "blitz-telegram"
+    me = "dgyarbot"  # todo change the name
+    webhook_route = "dgyar-telegram"
+
+
+# class DGYarBale(BaseBot, metaclass=singleton.Singleton):
+#     token = os.getenv("BALE_TOKEN")
+#     bot_type = "bale"
+#     me = "dgyarbot"  # todo change the name
+#     webhook_route = "dgyar-bale"

@@ -8,6 +8,7 @@ from typing import Any, Callable, Coroutine, Literal, Self
 from beanie import Document, Insert, Replace, Save, SaveChanges, Update, before_event
 from json_advanced import dumps
 from singleton import Singleton
+
 from utils import aionetwork, basic
 
 from .schemas import (

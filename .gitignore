@@ -163,3 +163,4 @@ cython_debug/
 *.data
 *.bk
 logs
+dgyar-access.json

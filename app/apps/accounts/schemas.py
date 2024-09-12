@@ -1,8 +1,9 @@
 import uuid
 
+from pydantic import BaseModel, Field
+
 from apps.ai.models import AIEngines
 from apps.base.schemas import BaseEntitySchema
-from pydantic import BaseModel, Field
 
 
 class ProfileData(BaseModel):

@@ -1,10 +1,11 @@
 import logging
 
 import singleton
+from telebot import async_telebot
+
 from apps.bots import Bot
 from apps.bots.bot_functions import callback, inline_query, inline_query_ai, message
 from server.config import Settings
-from telebot import async_telebot
 from utils.apitools import get_reverse_url
 from utils.basic import get_all_subclasses
 
@@ -44,11 +45,14 @@ class BotFunctions(metaclass=singleton.Singleton):
             return
 
         for bot_cls in get_all_subclasses(Bot.BaseBot):
-            logging.info(f"Setting up bot: {bot_cls.me}")
+            logging.info(f"Setting up bot: {bot_cls.me} {bot_cls.bot_type}")
             bot: Bot.BaseBot = bot_cls()
 
             await self.setup_webhook(bot)
             await self.setup_bot(bot)
+
+            logging.info(f"Setuped bot: {bot_cls.me} {bot_cls.bot_type}")
+
 
         self.is_setup = True
 
@@ -56,7 +60,7 @@ class BotFunctions(metaclass=singleton.Singleton):
         from apps.bots.routes import router
 
         reverse_url = get_reverse_url(
-            name="bot_update", bot=bot.webhook_route, router=router
+            name="bot_update", router=router, bot=bot.webhook_route
         )
         webhook_url = f"https://{Settings.root_url}{reverse_url}"
         if (await bot.get_webhook_info()).url != webhook_url:

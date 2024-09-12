@@ -1,5 +1,5 @@
 import re
-
+import string
 
 def escape_markdown(text):
     replacements = [
@@ -169,3 +169,36 @@ def split_text2(text, max_chunk_size=4096):
         chunks.append(current_chunk.strip())
 
     return chunks
+
+
+def backtick_formatter(text: str):
+    text = text.strip().strip("```json").strip("```").strip()
+    # if text.startswith("```"):
+    #     text = "\n".join(text.split("\n")[1:-1])
+    return text
+
+
+def format_keys(text: str) -> set[str]:
+    return {t[1] for t in string.Formatter().parse(text) if t[1]}
+
+
+def format_fixer(**kwargs):
+    list_length = len(next(iter(kwargs.values())))
+
+    # Initialize the target list
+    target = []
+
+    # Iterate over each index of the lists
+    for i in range(list_length):
+        # Create a new dictionary for each index
+        entry = {key: kwargs[key][i] for key in kwargs}
+        # Append the new dictionary to the target list
+        target.append(entry)
+
+    return target
+
+def get_dict_data(data, key, value):
+        for r in data:
+            if r.get(key) == value:
+                return r
+    

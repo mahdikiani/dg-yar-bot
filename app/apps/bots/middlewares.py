@@ -1,9 +1,10 @@
 import uuid
 
-from apps.accounts.schemas import Profile
-from apps.bots import Bot, schemas
 from telebot import async_telebot
 from usso.core import UserData
+
+from apps.accounts.schemas import Profile
+from apps.bots import Bot, schemas
 
 
 class UserMiddleware(async_telebot.BaseMiddleware):
