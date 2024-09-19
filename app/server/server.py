@@ -26,7 +26,7 @@ async def lifespan(app: fastapi.FastAPI):  # type: ignore
     await db.init_db()
     await BotFunctions().setup()
 
-    app.state.worker = asyncio.create_task(workers.init_workers())
+    # app.state.worker = asyncio.create_task(workers.init_workers())
 
     logging.info("Startup complete")
     yield
@@ -108,6 +108,8 @@ app.include_router(bots_router)
 async def index():
     return {"message": "Hello World!"}
 
+
 @app.get("/health")
 async def index():
     return {"status": "ok"}
+

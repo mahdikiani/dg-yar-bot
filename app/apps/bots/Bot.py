@@ -42,7 +42,7 @@ class BaseBot(AsyncTeleBot):
             self.token = token
         super(BaseBot, self).__init__(
             self.token,
-            parse_mode="markdown",
+            parse_mode="html",
             *args,
             **kwargs,
         )
@@ -67,7 +67,7 @@ class BaseBot(AsyncTeleBot):
             elif "can't parse entities" in str(e):
                 kwargs["parse_mode"] = ""
                 await self.edit_message_text(text, *args, **kwargs)
-                logger.warning(f"edit_message_text error: {e}")
+                logger.warning(f"edit_message_text error: {e}, {text}")
             else:
                 raise e
 

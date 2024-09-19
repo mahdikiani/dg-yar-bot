@@ -4,7 +4,7 @@ import singleton
 from telebot import async_telebot
 
 from apps.bots import Bot
-from apps.bots.bot_functions import callback, inline_query, inline_query_ai, message
+from apps.bots.bot_functions import callback, message
 from server.config import Settings
 from utils.apitools import get_reverse_url
 from utils.basic import get_all_subclasses
@@ -53,7 +53,6 @@ class BotFunctions(metaclass=singleton.Singleton):
 
             logging.info(f"Setuped bot: {bot_cls.me} {bot_cls.bot_type}")
 
-
         self.is_setup = True
 
     async def setup_webhook(self, bot: Bot.BaseBot):
@@ -81,13 +80,6 @@ class BotFunctions(metaclass=singleton.Singleton):
             content_types=["text", "voice", "photo"],
             pass_bot=True,
         )
-        if bot.bot_type == "telegram":
-            bot.register_inline_handler(
-                inline_query, func=lambda _: True, pass_bot=True
-            )
-            bot.register_chosen_inline_handler(
-                inline_query_ai, func=lambda _: True, pass_bot=True
-            )
 
 
 async def update_bot(bot_route: str, update_dict: dict, *args, **kwargs):

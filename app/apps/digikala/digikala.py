@@ -120,7 +120,8 @@ class DGClient(metaclass=Singleton):
 
     def get_auth(self, token):
         path = "auth/token"
-        return self._request("POST", path=path, json={"authorization_code": token})
+        res = self._request("POST", path=path, json={"authorization_code": token})
+        return res.get('data')
 
     def get_route(self, path):
         return f"{self.base_url}/{path}"
@@ -172,11 +173,31 @@ class DGClient(metaclass=Singleton):
         pass
 
     def get_category_details(self, category_id):
-        path = f'product-creation/category/{category_id}/validation'
+        path = f"product-creation/category/{category_id}/validation"
         r = self._request(method="get", path=path)
         return r
 
     def get_category_attribute(self, category_id):
-        path = f'product-creation/attributes/{category_id}'
+        path = f"product-creation/attributes/{category_id}"
         r = self._request(method="get", path=path)
-        return r
+        attr_groups = r.get("data").get("category_group_attributes")
+
+        attributes = []
+        for attrs in attr_groups.values():
+            attributes += list(attrs.get("attributes").values())
+
+        return attributes
+
+    def get_product_details(self, url):
+        # url = 'https://www.digikala.com/product/dkp-10797167/sadlkjalkd-fasfn'
+        pid = url.split("/")[4].split("-")[1]
+        return requests.get(f"https://api.digikala.com/v2/product/{pid}/").json()
+    
+    def save_product(self, product_data):
+        path = "/product-creation​/product​/detail​/validation"
+        draft = self._request("post", path=path, json=product_data)
+
+        path = 'product-creation​/auto-title​/save'
+        draft = self._request("post", path=path, json={"draft_product_id": draft.get("data").get("draft_product_id"), **product_data})
+
+        return draft

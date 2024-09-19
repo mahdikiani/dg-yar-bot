@@ -13,6 +13,7 @@ from tapsage.taptypes import Session as TapSession
 from apps.accounts.schemas import Profile
 from apps.ai.models import AIEngines
 from apps.bots import handlers, keyboards, models, services
+from apps.digikala import sheet
 from server.config import Settings
 from utils.texttools import split_text
 
@@ -24,8 +25,8 @@ Session = MetisSession | TapSession
 def get_tapsage(profile: Profile) -> AsyncTapSageBot | AsyncMetisBot:
     for engine in AIEngines:
         if profile.data.ai_engine.name == engine.name:
-            return AsyncMetisBot(Settings.METIS_API_KEY, engine.metis_bot_id)
-            # return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
+            # return AsyncMetisBot(Settings.METIS_API_KEY, engine.metis_bot_id)
+            return AsyncTapSageBot(Settings.TAPSAGE_API_KEY, engine.tapsage_bot_id)
     return AsyncMetisBot(Settings.METIS_API_KEY, AIEngines.gpt_4o.metis_bot_id)
 
 
@@ -150,22 +151,22 @@ async def ai_response(
                             chat_id=chat_id,
                             # inline_message_id=inline_message_id,
                             parse_mode="markdown",
-                            reply_markup=(
-                                keyboards.read_keyboard(msg_obj.uid)
-                                if i == len(messages) - 1
-                                else None
-                            ),
+                            # reply_markup=(
+                            #     keyboards.read_keyboard(msg_obj.uid)
+                            #     if i == len(messages) - 1
+                            #     else None
+                            # ),
                         )
                     else:
                         await bot.send_message(
                             chat_id=chat_id,
                             text=msg,
                             parse_mode="markdown",
-                            reply_markup=(
-                                keyboards.read_keyboard(msg_obj.uid)
-                                if i == len(messages) - 1
-                                else None
-                            ),
+                            # reply_markup=(
+                            #     keyboards.read_keyboard(msg_obj.uid)
+                            #     if i == len(messages) - 1
+                            #     else None
+                            # ),
                         )
                 # await bot.delete_message(chat_id, response_id)
 
@@ -195,7 +196,6 @@ async def url_response(
     **kwargs,
 ):
     bot = handlers.get_bot(bot_name)
-    sheet_url = await services.get_sheet_url()
     if "amazon" in url:
         provider = "Amazon"
 
@@ -208,10 +208,11 @@ async def url_response(
             url = url[:-1]
 
         try:
-            product_list = await services.aio_request(
-                method="get", url=f"{url}/api/v1/products"
-            )
+            if "/api/v1/products" in url:
+                product_list = ["s"]
+                provider = "Sazito"
         except aiohttp.client_exceptions.ClientResponseError as e:
+            product_list = None
             logger.error(f"{type(e)}: {e}")
             await bot.edit_message_text(
                 chat_id=chat_id, message_id=response_id, text="فروشنده پشتیبانی نمیشود"
@@ -226,15 +227,20 @@ async def url_response(
                 chat_id=chat_id, message_id=response_id, text="فروشنده پشتیبانی نمیشود"
             )
 
-    text = "\n".join(
-        [f"Provider: {provider}", f"URL: {url}", "", f"Sheet URL: {sheet_url}"]
-    )
+    from apps.bots.schemas import MessageStruct
+
+    sheet_url = await services.get_sheet(url, provider)
+
+    msg_struct = MessageStruct(**Settings().bot_messages("sent_url"))
+
+    text = msg_struct.msg.format(provider=provider, sheet_link=sheet_url)
+    sheet_id = sheet.get_sheet_id(sheet_url)
 
     await bot.edit_message_text(
         chat_id=chat_id,
         message_id=response_id,
         text=text,
-        reply_markup=keyboards.sheet_keyboard(sheet_url),
+        reply_markup=keyboards.sheet_keyboard(sheet_id),
     )
 
 
@@ -247,6 +253,7 @@ async def image_response(
     bot_name,
 ):
     import replicate
+    from apps.bots.schemas import MessageStruct
 
     client = replicate.Client(api_token=Settings.REPLICATE_API_TOKEN)
 
@@ -254,9 +261,11 @@ async def image_response(
 
     bot = handlers.get_bot(bot_name)
 
-    await bot.edit_message_text(
-        chat_id=chat_id, message_id=response_id, text=f"Image received {output}"
-    )
+    msg_struct = MessageStruct(**Settings().bot_messages("edit_image"))
 
-    image = httpx.get(output).content
-    await bot.send_photo(chat_id=chat_id, photo=image)
+    text = msg_struct.msg.format(image_link=output)
+
+    # await bot.edit_message_text(chat_id=chat_id, message_id=response_id, text=text)
+
+    # image = httpx.get(output).content
+    await bot.send_photo(chat_id=chat_id, photo=output, caption=text)

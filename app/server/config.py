@@ -1,7 +1,7 @@
 """FastAPI server configuration."""
 
-import json
 import dataclasses
+import json
 import logging
 import logging.config
 import os
@@ -40,7 +40,7 @@ class Settings(metaclass=Singleton):
     REPLICATE_SERVICE: str = (
         "lucataco/remove-bg:95fcc2a26d3899cd6c2691c900465aaeff466285a65c14638cc5f36f34befaf1"
     )
-    APIFY_API_KEY :str = os.getenv("APIFY_API_KEY")
+    APIFY_API_KEY: str = os.getenv("APIFY_API_KEY")
     GOOGLE_SECRET: str = os.getenv("GOOGLE_SECRET")
     PROXY: str = os.getenv("PROXY")
 
@@ -103,24 +103,24 @@ class Settings(metaclass=Singleton):
 
     @property
     def categories(self):
-        with open(self.base_dir/"scripts"/"cat_name.json") as f:
+        with open(self.base_dir / "scripts" / "cat_name.json") as f:
             result = json.load(f)
         return result
 
     def get_category_data(self, category):
-        with open(self.base_dir/"scripts"/"cats2.json") as f:
+        with open(self.base_dir / "scripts" / "cats2.json") as f:
             result = json.load(f)
-        
+
         if type(category) == dict:
-            category = category.get('category')
+            category = category.get("category")
 
         for r in result:
-            if r.get('category') == category:
+            if r.get("category") == category:
                 return r
-        
+        return r
 
     def prompts(self, key=None):
-        with open(self.base_dir/"scripts"/"prompts.json") as f:
+        with open(self.base_dir / "scripts" / "prompts.json") as f:
             result = json.load(f)
 
         if key:
@@ -128,7 +128,7 @@ class Settings(metaclass=Singleton):
         return result
 
     def bot_messages(self, key=None):
-        with open(self.base_dir/"scripts"/"bot_messages.json") as f:
+        with open(self.base_dir / "scripts" / "bot_messages.json") as f:
             result = json.load(f)
         if key:
             return result.get(key)

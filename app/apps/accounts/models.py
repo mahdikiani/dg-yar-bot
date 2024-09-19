@@ -3,6 +3,7 @@ from apps.digikala.digikala import DGClient
 
 
 class Profile(BaseEntity):
+    chat_id: str = ""
     token: str = ""
 
     def access_token(self):

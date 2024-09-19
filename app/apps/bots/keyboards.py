@@ -8,6 +8,7 @@ from telebot.types import (
 from apps.accounts.schemas import Profile
 from apps.ai.models import AIEngines
 from utils import b64tools
+from apps.bots.schemas import MSGButton
 
 
 def main_keyboard():
@@ -22,6 +23,18 @@ def main_keyboard():
         KeyboardButton("ثبت شماره تماس"),
     )
 
+    return markup
+
+
+def auth_keyboard(user_id):
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton(
+            "اتصال به دیجی کالا",
+            url=f"https://digikalabot.bot.inbeet.tech/login?user={user_id}",
+            # url=f"https://t.me/DGYarBot?start={user_id}",
+        ),
+    )
     return markup
 
 
@@ -62,11 +75,10 @@ def read_keyboard(message_id):
     return markup
 
 
-def sheet_keyboard(sheet_url):
+def sheet_keyboard(sheet_id):
     markup = InlineKeyboardMarkup()
     markup.add(
-        InlineKeyboardButton("تایید", callback_data=f"sheet_ok_{123}"),
-        InlineKeyboardButton("رد", callback_data=f"sheet_cancel_{123}"),
+        InlineKeyboardButton("تایید", callback_data=f"sheet_ok_{sheet_id}"),
     )
     return markup
 
@@ -76,6 +88,15 @@ def answer_keyboard(message_id):
     markup.add(
         InlineKeyboardButton("جواب دادن", callback_data=f"answer_{message_id}"),
     )
+    return markup
+
+
+def dynamic_keyboard(buttons: list[MSGButton]):
+    markup = InlineKeyboardMarkup()
+    for button in buttons:
+        markup.add(
+            InlineKeyboardButton(button.text, callback_data=button.name),
+        )
     return markup
 
 

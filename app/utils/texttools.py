@@ -1,6 +1,7 @@
 import re
 import string
 
+
 def escape_markdown(text):
     replacements = [
         ("_", r"\_"),
@@ -197,8 +198,8 @@ def format_fixer(**kwargs):
 
     return target
 
+
 def get_dict_data(data, key, value):
-        for r in data:
-            if r.get(key) == value:
-                return r
-    
+    for r in data:
+        if r.get(key) == value:
+            return r
